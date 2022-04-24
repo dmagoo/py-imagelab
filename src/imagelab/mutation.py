@@ -1,0 +1,182 @@
+"""Mutation utilities for imagelab
+
+   Various utilities for altering a canvas based on different algorithms, etc
+
+   class MutationEvent:
+
+    An event that can be applied to any canvas.
+    It keeps track of the Mutator who should run this event.
+
+    a) We tell the Mutator to draw a random shape on our canvas.
+       These are the mutatorInstructions
+    b) Mutator draws a red circle of radius 3 at x:20, y:20 and then a 2px
+       blue line from x:1 - y:33 .  These are mutatorActions
+
+    Storing both gives us the ability to send the same instructions,
+    or replay the events exactly.
+
+    This class should remain light weight
+
+    #surface = None
+    name = None
+
+    # Input to the Mutator. simple dictionary of instrctions.
+    # Might be slimmer to use op-codes, though.
+    # When saving, we may opt to only save the actions, actually,
+    # since we may not care how
+    #They were achieved
+    #mutatorInstructions = []
+
+    #Output from the Mutator.  A sequence of actions taken against the canvas
+    actions = []
+
+    def __init__(self, name, actions):
+        self.name = name
+        self.actions = actions
+
+    #def serialize(self):
+    #    ret = self.mutatorName, self.mutatorActions
+    #    return pickle.dumps(ret)
+"""
+from numpy.random import randint
+from imagelab.constants import (
+    SHAPE_CIRCLE,
+    SHAPE_POLYGON,
+    SHAPE_SETTINGS_ARRAY,
+    POLYGON_NUM_SIDES
+)
+from imagelab.drawing import draw_random_circle, draw_random_polygon
+from imagelab.compare import best_match
+
+
+def mutator(mutator_fn):
+    """ Take some arguments and return a surface and actions that were applied
+        to it """
+    def wrap(*__args, **__kw):
+        actions, surface = mutator_fn(*__args, **__kw)
+        # return MutationEvent(mutator_fn.__name__, actions), surface
+        return actions, surface, mutator_fn.__name__
+
+    return wrap
+
+
+@mutator
+def mutate_null(surface):
+    """ Do nothing. Used to test pipeline """
+    return [], surface
+
+
+@mutator
+def mutate_evolve(surface, params):
+    """ Spawn child surfaces and return the one closes to the target """
+    shape_actions = []
+    clip_rect = params.get('clip_rect')
+    shape = params.get('shape', SHAPE_CIRCLE)
+    max_radius = params.get('max_radius', (clip_rect.width/2))
+    radius = params.get('radius')
+    max_edges = params.get('max_edges', 8)
+    radius = params.get('radius')
+    alpha = params.get('alpha', 180)
+    color = params.get('color')
+    color_key = params.get('color_key', (0, 0, 0))
+    children = params.get('children', 80)
+    pos = params.get('pos')
+    target = params.get('target')
+    child_callback = params.get('child_callback', None)
+
+    # TODO: move above PARAMS into **kwargs and set default vaules via
+    # new_params = defaults.copy()
+    # new_params.update(params)
+    # and maybe filter:
+    # whitelist = ['color', clip_rect', ...]
+    # cleaned_params = {key: value for key, value in dict.items() if key
+    #   in whitelist}
+
+    # TODO: dig this code from old repository and make it usable somehow
+    # morphResults = morphSurfaceFont(surface, children, clip_rect,["J","i","m"
+    # , "i","H","e","n","d","r","i","x"], 100, 100, None, alpha, color,
+    #  color_key, pos, return_actions=True)
+    morph_results = morph_surface(surface, children, clip_rect, shape,
+                                  max_radius, radius, alpha, color, color_key,
+                                  pos, max_edges,
+                                  child_callback=child_callback,
+                                  return_actions=False)
+
+    # get the list of surfaces
+    # surface_candidates = morph_results[2]
+    surface_candidates = morph_results
+
+    surface = best_match(target, surface, surface_candidates, clip_rect)
+
+    try:
+        # get the shape instructions that made the best match
+        # shape_actions.append(morph_results[1][id(surface)])
+        pass
+    except KeyError:
+        # no shape showed an improvement, let's note that
+        #        shape_actions.append(None)
+        pass
+    return shape_actions, surface
+
+
+""" Utility functions
+   if your mutator does something special, consider putting it here so all of
+   the components can be used by other mutators
+"""
+
+
+def morph_surface(canvas, count=1, clip_rect=None, shape=SHAPE_CIRCLE,
+                  max_radius=0, radius=None, alpha=None, color=None,
+                  color_key=(0, 0, 0), pos=None, max_edges=None,
+                  child_callback=None, return_actions=False):
+    """
+       Takes an origin surface (canvas) and creates multiple (count) children.
+       Then, randomly plots a 'shape' of random size color and position.
+       If return_actions is true, it will return an array containing the
+       metadata used to make each child indexed by id(child)
+    """
+    i = 0
+
+    ret = []
+    surface_lookup = {}
+
+    if shape is None:
+        shape = SHAPE_SETTINGS_ARRAY[randint(0, 6)]
+
+    while i < count:
+        i += 1
+
+        img = canvas.copy()
+
+        if shape in POLYGON_NUM_SIDES or shape == SHAPE_POLYGON:
+            if shape == SHAPE_POLYGON:
+                numSides = None
+            else:
+                numSides = POLYGON_NUM_SIDES[shape]
+            result = draw_random_polygon(img, numSides, None, clip_rect,
+                                         max_radius, radius, alpha, color,
+                                         color_key, pos, max_edges)
+
+        else:
+            result = draw_random_circle(img, clip_rect, max_radius, radius,
+                                        alpha, color, color_key, pos)
+
+        if(child_callback):
+            child_callback(i, result, img)
+
+        if return_actions:
+            ret.append(img)
+            surface_lookup[id(img)] = result
+        else:
+            yield img
+
+    if count == 1:
+        ret = ret[0]
+
+    if return_actions:
+        if count == 1:
+            ret = [shape, result, ret]
+        else:
+            ret = [shape, surface_lookup, ret]
+
+    return ret

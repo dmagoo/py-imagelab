@@ -1,0 +1,23 @@
+{
+    "target_path": ".\\sample\\images\\safdarjung_tomb-691x1080.jpg",
+    "gen_start": 0,
+    "gen_stop": 100000,
+    "seconds_stop": -1,
+    "frame_start": 0,
+    "frame_stop": -1,
+    "children": 100,
+    "shape": 3,
+    "radius": 150,
+    "no_alpha": false,
+    "instructions": false,
+    "save_gen": 50,
+    "start_canvas": null,
+    "show_stats": false,
+    "save_directory": ".\\output",
+    "save_template": "%PREFIX-%FRAME%CHILDREN%GENERATION",
+    "prefix": "img",
+    "iconify": false,
+    "verbose": true,
+    "no_display": false,
+    "config_file": null
+}

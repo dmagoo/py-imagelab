@@ -1,0 +1,96 @@
+"""Math and geometry utilities for imagelab
+"""
+import math
+from numpy.random import randint
+from imagelab.color import get_random_color
+
+
+def get_random_clip_rect(rect, clip_width, clip_height):
+    """ Take an input rectangle and return a random sub rectange """
+    x_pos = randint(0 - (clip_width/2), rect.width - (clip_width/2))
+    y_pos = randint(0 - (clip_height/2), rect.height - (clip_height/2))
+    return (x_pos, y_pos, clip_width, clip_height)
+
+
+def resize_with_pad(source_size, target_size):
+    (source_width, source_height) = source_size
+    (target_width, target_height) = target_size
+    target_ratio = target_height / target_width
+    source_ratio = source_height / source_width
+    if target_ratio > source_ratio:
+        # It must be fixed by width
+        resize_width = target_width
+        resize_height = round(resize_width * source_ratio)
+    else:
+        # Fixed by height
+        resize_height = target_height
+        resize_width = round(resize_height / source_ratio)
+
+    return (resize_width, resize_height)
+
+
+def get_random_circle(canvas, clipRect=None, max_radius=20, radius=None,
+                      color=None, color_key=(0, 0, 0), pos=None):
+    """Create a random circle, defined by color position and radius"""
+    if not radius:
+        radius = randint(1, max_radius)
+
+    if not color:
+        color = get_random_color()
+
+    if not pos:
+        if clipRect:
+            pos = (randint(clipRect.left + radius, clipRect.right - radius),
+                   randint(clipRect.top + radius, clipRect.bottom - radius))
+        else:
+            pos = (randint(0, max(canvas.get_rect().size)),
+                   randint(0, max(canvas.get_rect().size)))
+
+    return (color, pos, radius)
+
+
+def get_random_polygon(canvas, edges=None, rotation=None, clipRect=None,
+                       max_radius=20, radius=None, color=None, pos=None,
+                       max_edges=8):
+    """Create a random polygon defined by color position
+       edges rotation and radius"""
+    if not radius:
+        radius = randint(1, max_radius + 1)
+
+    if not color:
+        color = get_random_color()
+
+    if not edges:
+        edges = randint(3, max_edges)
+
+    if rotation is None:
+        rotation = randint(0, 361)
+
+    if not pos:
+        if clipRect:
+            pos = (randint(clipRect.left + max_radius,
+                           clipRect.right - max_radius + 1),
+                   randint(clipRect.top + max_radius,
+                           clipRect.bottom - max_radius + 1))
+        else:
+            pos = (randint(0, max(canvas.get_rect().size)),
+                   randint(0, max(canvas.get_rect().size)))
+
+    return (color, pos, radius, edges, rotation)
+
+
+def get_polygon(edges=3, radius=10, pos=(0, 0), rotation=0):
+    d_angle = 2*math.pi / edges
+
+    rad = rotation * (180/math.pi)
+
+    ret = []
+
+    for i in range(edges):
+        point = (pos[0] + radius*math.cos(rad), pos[1] + radius*math.sin(rad))
+
+        ret.append(point)
+
+        rad += d_angle
+
+    return ret
