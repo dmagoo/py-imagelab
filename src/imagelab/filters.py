@@ -57,14 +57,14 @@ def apply_filter(source_array, filter_array, divisor, offset=0, hotspot=None):
         divisor = 1
 
     if hotspot is None:
-        hotspot = ((filter_w-1)/2, (filter_h-1)/2)
-
+        hotspot = (int((filter_w-1)/2), int((filter_h-1)/2))
+    else:
+        hotspot = (int(hotspot[0]), int(hotspot[1]))
     # Define the clipping area that can be affected by the filter
     left_margin = hotspot[0]
     top_margin = hotspot[1]
     right_margin = filter_w - 1 - hotspot[0]
     bottom_margin = filter_h - 1 - hotspot[1]
-
     for f_vert_offset in range(0-hotspot[1], filter_h-hotspot[1]):
         for f_horiz_offset in range(0-hotspot[0], filter_w-hotspot[0]):
             if filter_array[f_vert_offset+1][f_horiz_offset+1] != 0:
