@@ -69,7 +69,6 @@ def mutate_null(surface):
 @mutator
 def mutate_evolve(surface, params):
     """ Spawn child surfaces and return the one closes to the target """
-    shape_actions = []
     clip_rect = params.get('clip_rect')
     shape = params.get('shape', SHAPE_CIRCLE)
     max_radius = params.get('max_radius', (clip_rect.width/2))
@@ -104,9 +103,9 @@ def mutate_evolve(surface, params):
 
     # get the list of surfaces
     # surface_candidates = morph_results[2]
-    surface_candidates = morph_results
 
-    surface = best_match(target, surface, surface_candidates, clip_rect)
+
+    shape_actions, surface, score = best_match(target, surface, morph_results, clip_rect)
 
     try:
         # get the shape instructions that made the best match
@@ -164,12 +163,12 @@ def morph_surface(canvas, count=1, clip_rect=None, shape=SHAPE_CIRCLE,
         if(child_callback):
             child_callback(i, result, img)
 
-        if return_actions:
-            ret.append(img)
-            surface_lookup[id(img)] = result
-        else:
-            yield img
-
+        #if return_actions:
+        #    ret.append(img)
+        #    surface_lookup[id(img)] = result
+        #else:
+        yield [img, [result]]
+    """
     if count == 1:
         ret = ret[0]
 
@@ -180,3 +179,4 @@ def morph_surface(canvas, count=1, clip_rect=None, shape=SHAPE_CIRCLE,
             ret = [shape, surface_lookup, ret]
 
     return ret
+    """

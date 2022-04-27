@@ -2,7 +2,7 @@
 
 Produce a target image by randomly mutating a base canvas
 """
-
+import json
 import time
 import pygame
 import os
@@ -12,6 +12,9 @@ from imagelab.geometry import get_random_clip_rect
 from imagelab.geometry import resize_with_pad
 from imagelab.compare import match_score, get_match_percentage
 from imagelab.canvas import Canvas
+
+OUTPUT_MODE_IMAGE = 0
+OUTPUT_MODE_INSTRUCTIONS = 1
 
 DEFAULT_DISPLAY_BG_COLOR = (3, 3, 100)
 DEFAULT_DISPLAY_HILIGHT_COLOR = (200, 200, 100)
@@ -574,6 +577,8 @@ class App:
 
         if(self.options.get('runs', 1) != 1):
             tpt = tpt.replace('%RUN', 'r%06d' % self.current_run)
+        else:
+            tpt = tpt.replace('%RUN', '')
 
         tpt = tpt.replace('%CHILDREN', 'c%06d' % self.options.get('children'))
         tpt = tpt.replace('%WIDTH', 'w%04d' % self.canvas.size[0])
@@ -592,19 +597,30 @@ class App:
 
         return os.path.join(path, tpt)
 
-    def save(self):
+    def save(self, output_mode=None):
         """ Output current state to file """
         self.print("saving output")
-        if self.options.get('instructions'):
-            savefile = self.get_save_file_name('pkl')
-            output = open(savefile, 'wb')
+
+        if output_mode is None:
+            output_mode = OUTPUT_MODE_INSTRUCTIONS if \
+                self.options.get('instructions') else OUTPUT_MODE_IMAGE
+
+        if OUTPUT_MODE_INSTRUCTIONS:
+            savefile = self.get_save_file_name('json')
+            output = open(savefile, 'w')
+            os.makedirs(os.path.dirname(savefile), exist_ok=True)
+            output.write(json.dumps(self.canvas.serialize()))
+
+            # savefile = self.get_save_file_name('pkl')
+            # output = open(savefile, 'wb')
             # pickle.dump(self.canvas.serialize(), output, 1)
+
             output.close()
         else:
             savefile = self.get_save_file_name(DEFAULT_IMAGE_SAVE_EXT)
-        self.print(f"saving file {savefile}")
-        os.makedirs(os.path.dirname(savefile), exist_ok=True)
-        pygame.image.save(self.canvas.surface, savefile)
+            self.print(f"saving file {savefile}")
+            os.makedirs(os.path.dirname(savefile), exist_ok=True)
+            pygame.image.save(self.canvas.surface, savefile)
 
     def handle_events(self):
         """ handle keyboard inputs """
@@ -620,6 +636,10 @@ class App:
                     self._show_highlights = not self._show_highlights
                 elif event.key == pygame.K_i:
                     self._show_info = not self._show_info
+                elif event.key == pygame.K_a:
+                    self.save(OUTPUT_MODE_INSTRUCTIONS)
+                elif event.key == pygame.K_s:
+                    self.save(OUTPUT_MODE_IMAGE)
                 elif event.key == pygame.K_RETURN:
                     self.save()
             elif event.type == pygame.VIDEORESIZE:

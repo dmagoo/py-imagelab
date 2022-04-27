@@ -3,7 +3,9 @@
 A canvas contains a pygame surface and represents the current state and history
 of an drawing
 """
+from abc import ABC, abstractmethod
 import pickle
+import json
 import pygame
 from imagelab.constants import SHAPE_CIRCLE
 from imagelab.geometry import get_polygon
@@ -35,7 +37,6 @@ class Canvas:
         # clear out the surface from the event.  We don't need it in Mem
         # IMPORTANT!
         # mutation_event.surface = None
-
         # self.history.append(mutation_event)
         self.history.extend(actions)
 
@@ -43,13 +44,33 @@ class Canvas:
         pass
 
     def serialize(self):
-        pass
+        # history = [item.serialize() for item in self.history]
+        # return json.dumps([self.size, history])
+        # return pickle.dumps([self.size,history])
+        return self.__json__()
 
-    def deserialize(self, serialized_data):
-        pass
+    @staticmethod
+    def deserialize(serialized_data):
+        size, hist = serialized_data
+        surface = pygame.Surface(size)
+        canvas = Canvas(surface)
+
+        for serialized_action in hist:
+            canvas_action = CanvasAction.deserialize(serialized_action)
+            if canvas_action is not None:
+                canvas_action.run(canvas.surface)
+
+            canvas.history.append(canvas_action)
+
+        return canvas
+
+    def __json__(self):
+        history = [item.serialize() for item in self.history]
+        return [self.size, history]
 
 
-class CanvasAction:
+
+class CanvasAction(ABC):
     """Abstract (interface, really) These are single actions.
         They should be kept simple. They must be serializable. This is what the
         Mutators use to record the history of their actions.  Think of them as
@@ -60,24 +81,41 @@ class CanvasAction:
         something random... use a Mutator
     """
     params = {}
+    opcode = '0'
 
     def __init__(self, params):
         self.params = params
 
+    def serialize(self):
+        # return pickle.dumps(self.params)
+        # return json.dumps([self.opcode, self.params])
+        return self.__json__()
+
+    def deserialize(data):
+        # self.params = pickle.loads(params)
+        [opcode, params] = data
+
+        class_object = {
+            cls.opcode: cls for cls in all_canvas_actions
+        }.get(opcode, None)
+
+        if class_object is not None:
+            return class_object(params)
+
+        return None
+
+    def __json__(self):
+        return [self.opcode, self.params]
+
+    @abstractmethod
     def run(self, canvas):
         pass
-
-    def serialize(self):
-        return pickle.dumps(self.params)
-
-    def unserialize(self, params):
-        self.params = pickle.loads(params)
 
 
 class CanvasActionDrawShape(CanvasAction):
     """Draw a shape on the canvas"""
-
-    opCode = "s"
+    testvar = 'TEST TEST'
+    opcode = "s"
 
     def run(self, canvas):
         alpha = self.params.get('alpha', 220)
@@ -116,3 +154,6 @@ class CanvasActionDrawShape(CanvasAction):
             else:
                 pygame.draw.polygon(canvas, color,
                                     get_polygon(edges, radius, pos, rotation))
+
+
+all_canvas_actions = [CanvasActionDrawShape]

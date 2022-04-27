@@ -39,23 +39,25 @@ def match_score(source, candidate, clip_rect=None):
 
 
 def best_match(source, contender, list, clip_rect=None):
-    """take a list of surfaces and a target, return the closest match"""
+    """take a list of surfaces and a target, return the closest match
+       which is defined as [action, surface, score]
+    """
     best = contender
     best_score = match_score(source, contender, clip_rect)
-
+    best_actions = []
     if best_score == 0:
-        return best
+        return [best_actions, best, best_score]
 
-    for candidate in list:
+    for [candidate, actions] in list:
         score = match_score(source, candidate, clip_rect)
 
         # best score is smaller because it's how big the difference is
         if score < best_score:
             best = candidate
             best_score = score
+            best_actions = actions
 
     if VERBOSE:
-        realbest_score = match_score(source, best, None)
-        print('best score is %f' % realbest_score)
+        print('best score is %f' % best_score)
 
-    return best
+    return [best_actions, best, best_score]
