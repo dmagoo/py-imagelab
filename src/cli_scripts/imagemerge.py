@@ -14,7 +14,7 @@ def get_arg_parser():
     parser = argparse.ArgumentParser(
         description=""" Runs merger on all images in a directory or
         a list of file.""",
-        prog='averager'
+        prog='imagemerge'
     )
     parser.add_argument("target_path", nargs="+", type=pathlib.Path,
                         help="""Paths to images or a directory""")

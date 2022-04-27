@@ -1,6 +1,5 @@
 """ Set up imagelab """
 from glob import glob
-from os import environ
 from os.path import basename
 from os.path import splitext
 
@@ -19,6 +18,7 @@ setup(
     entry_points={
         "console_scripts": [
             "imagemutate=cli_scripts.imagemutate:run",
+            "imagereplay=cli_scripts.imagereplay:run",
             "imagemerge=cli_scripts.imagemerge:run"
         ]
     },

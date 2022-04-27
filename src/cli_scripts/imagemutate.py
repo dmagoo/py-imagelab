@@ -24,7 +24,7 @@ def get_arg_parser():
     parser = argparse.ArgumentParser(
         description=""" Runs imagelab on a source image or movie.
         Hitting spacebar will save current image.""",
-        prog='imagelab'
+        prog='imagemutate'
     )
     parser.add_argument("target_path",
                         help="""Complete path to the target image or movie"""

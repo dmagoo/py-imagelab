@@ -4,8 +4,6 @@ A canvas contains a pygame surface and represents the current state and history
 of an drawing
 """
 from abc import ABC, abstractmethod
-import pickle
-import json
 import pygame
 from imagelab.constants import SHAPE_CIRCLE
 from imagelab.geometry import get_polygon
@@ -16,6 +14,7 @@ class Canvas:
       and provides some methods
     """
     surface = None
+    current_action = 0
     history = []
 
     def __init__(self, surface=None):
@@ -49,8 +48,25 @@ class Canvas:
         # return pickle.dumps([self.size,history])
         return self.__json__()
 
+    def clear_surface(self, color=None):
+        self.surface = pygame.Surface(self.size)
+        if color is not None:
+            self.surface.fill(color)
+        print("clearing surface")
+        self.current_action = 0
+
+    def replay(self, to=-1, color=None):
+        self.clear_surface(color)
+        num_actions = len(self.history)
+
+        if to == -1:
+            to = num_actions - 1
+        while self.current_action <= to:
+            self.history[self.current_action].run(self.surface)
+            self.current_action += 1
+
     @staticmethod
-    def deserialize(serialized_data):
+    def deserialize(serialized_data, autorun=False):
         size, hist = serialized_data
         surface = pygame.Surface(size)
         canvas = Canvas(surface)
@@ -58,16 +74,16 @@ class Canvas:
         for serialized_action in hist:
             canvas_action = CanvasAction.deserialize(serialized_action)
             if canvas_action is not None:
-                canvas_action.run(canvas.surface)
-
-            canvas.history.append(canvas_action)
+                if autorun:
+                    canvas.current_action += 1
+                    canvas_action.run(canvas.surface)
+                canvas.history.append(canvas_action)
 
         return canvas
 
     def __json__(self):
         history = [item.serialize() for item in self.history]
         return [self.size, history]
-
 
 
 class CanvasAction(ABC):
