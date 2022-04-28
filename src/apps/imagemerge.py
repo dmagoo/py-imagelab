@@ -1,10 +1,13 @@
 from collections.abc import Iterable
+import os
 import pygame
 from imagelab import filters
 
 IMAGE_EXTENSIONS = (".bmp", ".jpg", ".jpeg", ".png", ".gif")
 SCREENRECT = pygame.Rect(0, 0, 680, 480)
 BG_COLOR = (33, 33, 33)
+
+DEFAULT_IMAGE_SAVE_EXT = 'png'
 
 
 def flatten(input_list):
@@ -22,6 +25,7 @@ def is_image_file(path):
 class App:
     options = {}
     running = False
+    surface = None
     _input_files = []
 
     bit_depth = 32
@@ -83,7 +87,27 @@ class App:
                 self.update_display()
 
     def save(self):
-        print("saving not implemented")
+        """ Output to file """
+        if not self.surface:
+            self.print("image not processed")
+            return
+        savefile = self.get_save_file_name(DEFAULT_IMAGE_SAVE_EXT)
+        self.print(f"saving file {savefile}")
+        os.makedirs(os.path.dirname(savefile), exist_ok=True)
+        pygame.image.save(self.surface, savefile)
+
+    def get_save_file_name(self, ext=None):
+        """ Return a save-file name based on template configuration and
+            app state """
+
+        file_name = 'merge-output'
+
+        if ext is not None:
+            file_name = file_name + '.' + ext
+
+        path = self.options.get('save_directory', '.')
+
+        return os.path.join(path, file_name)
 
     def validate_input_files(self, input_file_list):
         unflattened = [
@@ -127,7 +151,8 @@ class App:
         self.print("applying filters")
         av = self.filter_surface(layers)
         background.fill(BG_COLOR)
-        background.blit(av, (10, 10))
+        background.blit(av, (0, 0))
+        self.surface = background
         self.screen.blit(background, (0, 0))
         pygame.display.update()
 

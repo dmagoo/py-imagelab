@@ -50,6 +50,10 @@ def get_random_circle(canvas, clip_rect=None, max_radius=20, radius=None,
     return (color, pos, radius)
 
 
+# todo: allow for random irregular polygons:
+# https://observablehq.com/@tarte0/generate-random-simple-polygon
+# todo: look into getting rid of max_(edges, radius) and simply letters
+# edge/radius,etc be a tuple: (min,max) or a single value
 def get_random_polygon(canvas, edges=None, rotation=None, clip_rect=None,
                        max_radius=20, radius=None, color=None, pos=None,
                        max_edges=8):
