@@ -605,10 +605,10 @@ class App:
             output_mode = OUTPUT_MODE_INSTRUCTIONS if \
                 self.options.get('instructions') else OUTPUT_MODE_IMAGE
 
-        if OUTPUT_MODE_INSTRUCTIONS:
+        if output_mode == OUTPUT_MODE_INSTRUCTIONS:
             savefile = self.get_save_file_name('json')
-            output = open(savefile, 'w')
             os.makedirs(os.path.dirname(savefile), exist_ok=True)
+            output = open(savefile, 'w')
             output.write(json.dumps(self.canvas.serialize()))
 
             # savefile = self.get_save_file_name('pkl')
@@ -721,6 +721,7 @@ class App:
                 'clip_rect': self._clip_rect,
                 'children': self.options.get('children', DEFAULT_CHILDREN),
                 'shape': self.options.get('shape', DEFAULT_SHAPE),
+                'words': self.options.get('words', None),
                 'max_radius': max_radius,
                 'child_callback': self.child_callback
             }

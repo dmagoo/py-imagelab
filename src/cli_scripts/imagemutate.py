@@ -62,6 +62,10 @@ def get_arg_parser():
                         help="""allow other [s]hapes,
                         see imagelab.constants for available shapes"""
                         )
+    parser.add_argument("-W", "--words", default="",
+                        nargs="+", help="""instead of a shape allow [w]ords from
+                        a list. Supports multiple: -W foo -W bar"""
+                        )
     parser.add_argument("-r", "--radius", default=40, type=int,
                         help="maximum [r]adius of given shapes")
     parser.add_argument("-n", "--no-alpha", action="store_true",

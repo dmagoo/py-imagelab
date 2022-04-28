@@ -45,7 +45,8 @@ from imagelab.constants import (
     SHAPE_SETTINGS_ARRAY,
     POLYGON_NUM_SIDES
 )
-from imagelab.drawing import draw_random_circle, draw_random_polygon
+from imagelab.drawing import (draw_random_circle, draw_random_polygon,
+                              draw_random_word)
 from imagelab.compare import best_match
 
 
@@ -82,6 +83,7 @@ def mutate_evolve(surface, params):
     pos = params.get('pos')
     target = params.get('target')
     child_callback = params.get('child_callback', None)
+    words = params.get('words', None)
 
     # TODO: move above PARAMS into **kwargs and set default vaules via
     # new_params = defaults.copy()
@@ -95,7 +97,7 @@ def mutate_evolve(surface, params):
     # morphResults = morphSurfaceFont(surface, children, clip_rect,["J","i","m"
     # , "i","H","e","n","d","r","i","x"], 100, 100, None, alpha, color,
     #  color_key, pos, return_actions=True)
-    morph_results = morph_surface(surface, children, clip_rect, shape,
+    morph_results = morph_surface(surface, children, clip_rect, shape, words,
                                   max_radius, radius, alpha, color, color_key,
                                   pos, max_edges,
                                   child_callback=child_callback,
@@ -103,9 +105,8 @@ def mutate_evolve(surface, params):
 
     # get the list of surfaces
     # surface_candidates = morph_results[2]
-
-
-    shape_actions, surface, score = best_match(target, surface, morph_results, clip_rect)
+    shape_actions, surface, score = best_match(target, surface, morph_results,
+                                               clip_rect)
 
     try:
         # get the shape instructions that made the best match
@@ -125,8 +126,8 @@ def mutate_evolve(surface, params):
 
 
 def morph_surface(canvas, count=1, clip_rect=None, shape=SHAPE_CIRCLE,
-                  max_radius=0, radius=None, alpha=None, color=None,
-                  color_key=(0, 0, 0), pos=None, max_edges=None,
+                  words=None, max_radius=0, radius=None, alpha=None,
+                  color=None, color_key=(0, 0, 0), pos=None, max_edges=None,
                   child_callback=None, return_actions=False):
     """
        Takes an origin surface (canvas) and creates multiple (count) children.
@@ -136,9 +137,6 @@ def morph_surface(canvas, count=1, clip_rect=None, shape=SHAPE_CIRCLE,
     """
     i = 0
 
-    ret = []
-    surface_lookup = {}
-
     if shape is None:
         shape = SHAPE_SETTINGS_ARRAY[randint(0, 6)]
 
@@ -147,7 +145,10 @@ def morph_surface(canvas, count=1, clip_rect=None, shape=SHAPE_CIRCLE,
 
         img = canvas.copy()
 
-        if shape in POLYGON_NUM_SIDES or shape == SHAPE_POLYGON:
+        if words:
+            result = draw_random_word(img, words, None, clip_rect, max_radius,
+                                      radius, alpha, color, color_key, pos)
+        elif shape in POLYGON_NUM_SIDES or shape == SHAPE_POLYGON:
             if shape == SHAPE_POLYGON:
                 numSides = None
             else:
@@ -155,7 +156,6 @@ def morph_surface(canvas, count=1, clip_rect=None, shape=SHAPE_CIRCLE,
             result = draw_random_polygon(img, numSides, None, clip_rect,
                                          max_radius, radius, alpha, color,
                                          color_key, pos, max_edges)
-
         else:
             result = draw_random_circle(img, clip_rect, max_radius, radius,
                                         alpha, color, color_key, pos)
@@ -163,20 +163,4 @@ def morph_surface(canvas, count=1, clip_rect=None, shape=SHAPE_CIRCLE,
         if(child_callback):
             child_callback(i, result, img)
 
-        #if return_actions:
-        #    ret.append(img)
-        #    surface_lookup[id(img)] = result
-        #else:
         yield [img, [result]]
-    """
-    if count == 1:
-        ret = ret[0]
-
-    if return_actions:
-        if count == 1:
-            ret = [shape, result, ret]
-        else:
-            ret = [shape, surface_lookup, ret]
-
-    return ret
-    """

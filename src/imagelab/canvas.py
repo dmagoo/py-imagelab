@@ -8,6 +8,8 @@ import pygame
 from imagelab.constants import SHAPE_CIRCLE
 from imagelab.geometry import get_polygon
 
+CANVAS_FONT_PATH = "./assets/fonts/luculent/luculent.ttf"
+
 
 class Canvas:
     """A wrapper for a pygame surface.  Holds the surface, its history
@@ -130,7 +132,6 @@ class CanvasAction(ABC):
 
 class CanvasActionDrawShape(CanvasAction):
     """Draw a shape on the canvas"""
-    testvar = 'TEST TEST'
     opcode = "s"
 
     def run(self, canvas):
@@ -172,4 +173,40 @@ class CanvasActionDrawShape(CanvasAction):
                                     get_polygon(edges, radius, pos, rotation))
 
 
-all_canvas_actions = [CanvasActionDrawShape]
+class CanvasActionDrawText(CanvasAction):
+    """Draw text on the canvas"""
+    opcode = "t"
+
+    def run(self, canvas):
+        alpha = self.params.get('alpha', 220)
+        color = self.params.get('color')
+        pos = self.params.get('pos')
+        radius = self.params.get('radius')
+        rotation = self.params.get('rotation')
+        text = self.params.get('text')
+
+        font_size = estimate_font_size(text, radius)
+
+        # tmp_font = pygame.freetype.SysFont('Helvetica', font_size)
+        tmp_font = pygame.freetype.SysFont('Arial Black', font_size)
+        if alpha:
+            color = color + (alpha,)
+            # text_surface.set_alpha(alpha)
+            text_surface, _ = tmp_font.render(text, color)
+
+        # print(f"letters: {len(text)} radius: {radius} outputFontSize: "
+        #      f"{font_size} surface_width: {text_surface.get_size()[0]}")
+
+        if rotation:
+            text_surface = pygame.transform.rotozoom(text_surface, rotation, 1)
+
+        canvas.blit(text_surface, (pos[0] - radius, pos[1] - radius))
+
+
+def estimate_font_size(text, radius):
+    # print(f"text: {text} radius: {radius}")
+    text_len = len(text)
+    return max(int(radius / max(text_len, 4))*4, 4)
+
+
+all_canvas_actions = [CanvasActionDrawShape, CanvasActionDrawText]

@@ -2,6 +2,7 @@
 """
 import math
 from numpy.random import randint
+from numpy.random import choice
 from imagelab.color import get_random_color
 
 
@@ -29,7 +30,7 @@ def resize_with_pad(source_size, target_size):
     return (resize_width, resize_height)
 
 
-def get_random_circle(canvas, clipRect=None, max_radius=20, radius=None,
+def get_random_circle(canvas, clip_rect=None, max_radius=20, radius=None,
                       color=None, color_key=(0, 0, 0), pos=None):
     """Create a random circle, defined by color position and radius"""
     if not radius:
@@ -39,9 +40,9 @@ def get_random_circle(canvas, clipRect=None, max_radius=20, radius=None,
         color = get_random_color()
 
     if not pos:
-        if clipRect:
-            pos = (randint(clipRect.left + radius, clipRect.right - radius),
-                   randint(clipRect.top + radius, clipRect.bottom - radius))
+        if clip_rect:
+            pos = (randint(clip_rect.left + radius, clip_rect.right - radius),
+                   randint(clip_rect.top + radius, clip_rect.bottom - radius))
         else:
             pos = (randint(0, max(canvas.get_rect().size)),
                    randint(0, max(canvas.get_rect().size)))
@@ -49,7 +50,7 @@ def get_random_circle(canvas, clipRect=None, max_radius=20, radius=None,
     return (color, pos, radius)
 
 
-def get_random_polygon(canvas, edges=None, rotation=None, clipRect=None,
+def get_random_polygon(canvas, edges=None, rotation=None, clip_rect=None,
                        max_radius=20, radius=None, color=None, pos=None,
                        max_edges=8):
     """Create a random polygon defined by color position
@@ -67,16 +68,41 @@ def get_random_polygon(canvas, edges=None, rotation=None, clipRect=None,
         rotation = randint(0, 361)
 
     if not pos:
-        if clipRect:
-            pos = (randint(clipRect.left + max_radius,
-                           clipRect.right - max_radius + 1),
-                   randint(clipRect.top + max_radius,
-                           clipRect.bottom - max_radius + 1))
+        if clip_rect:
+            pos = (randint(clip_rect.left + max_radius,
+                           clip_rect.right - max_radius + 1),
+                   randint(clip_rect.top + max_radius,
+                           clip_rect.bottom - max_radius + 1))
         else:
             pos = (randint(0, max(canvas.get_rect().size)),
                    randint(0, max(canvas.get_rect().size)))
 
     return (color, pos, radius, edges, rotation)
+
+
+def get_random_word(canvas, words, rotation=None, clip_rect=None,
+                    max_radius=20, radius=None, color=None, pos=None):
+    word = choice(words, size=None)
+    if not radius:
+        radius = randint(1, max_radius + 1)
+
+    if not color:
+        color = get_random_color()
+
+    if rotation is None:
+        rotation = randint(0, 361)
+
+    if not pos:
+        if clip_rect:
+            pos = (randint(clip_rect.left + max_radius,
+                           clip_rect.right - max_radius + 1),
+                   randint(clip_rect.top + max_radius,
+                           clip_rect.bottom - max_radius + 1))
+        else:
+            pos = (randint(0, max(canvas.get_rect().size)),
+                   randint(0, max(canvas.get_rect().size)))
+
+    return (color, pos, radius, word, rotation)
 
 
 def get_polygon(edges=3, radius=10, pos=(0, 0), rotation=0):
