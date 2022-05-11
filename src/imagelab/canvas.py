@@ -7,8 +7,6 @@ from abc import ABC, abstractmethod
 import pygame
 from imagelab.constants import SHAPE_CIRCLE
 from imagelab.geometry import get_polygon
-from imagelab.geometry import get_random_clip_rect
-from numpy.random import randint
 
 CANVAS_FONT_PATH = "./assets/fonts/luculent/luculent.ttf"
 
@@ -146,6 +144,8 @@ class CanvasActionDrawShape(CanvasAction):
         rotation = self.params.get('rotation')
         edges = self.params.get('edges')
         brush_image = self.params.get('brush_image')
+        brush_sample_rect = self.params.get('brush_sample_rect')
+        brush_rotation = self.params.get('brush_rotation', 0)
 
         if not brush_image and not alpha:
             if SHAPE_CIRCLE == shape:
@@ -159,30 +159,19 @@ class CanvasActionDrawShape(CanvasAction):
         # since it includes random calculations
         if brush_image:
             scaled_size = (radius*2, radius*2)
-            brush_size = brush_image.get_size()
-            max_sample_size = max(radius*2, min(brush_size))
-            sample_size = randint(radius*2, max_sample_size)
-            sample_rect = get_random_clip_rect(
-                brush_image.get_rect(),
-                sample_size,
-                sample_size,
-                # max(brush_size),
-                # max(brush_size),
-                True
-            )
             brush_image = brush_image.subsurface(
-                brush_image.get_rect().clip(sample_rect)
+                brush_image.get_rect().clip(brush_sample_rect)
             )
             brush_image = pygame.transform.smoothscale(
                 brush_image,
                 scaled_size
             ).convert_alpha()
-            rotation = randint(1, 361)
-            if rotation:
+
+            if brush_rotation:
                 # brush_image = pygame.transform.rotozoom(
-                # brush_image, rotation, 1)
+                # brush_image, brush_rotation, 1)
                 brush_image = pygame.transform.rotate(
-                    brush_image, rotation)
+                    brush_image, brush_rotation)
 
         shape_surface = pygame.Surface((radius*2, radius*2))
         shape_surface.set_colorkey(color_key)

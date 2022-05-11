@@ -142,7 +142,8 @@ def morph_surface(canvas, count=1, clip_rect=None, shape=SHAPE_CIRCLE,
 
         if words:
             result = draw_random_word(img, words, None, clip_rect, max_radius,
-                                      radius, alpha, color, color_key, pos, brush_images)
+                                      radius, alpha, color, color_key, pos,
+                                      brush_images)
         elif shape in POLYGON_NUM_SIDES or shape == SHAPE_POLYGON:
             if shape == SHAPE_POLYGON:
                 numSides = None
@@ -150,10 +151,12 @@ def morph_surface(canvas, count=1, clip_rect=None, shape=SHAPE_CIRCLE,
                 numSides = POLYGON_NUM_SIDES[shape]
             result = draw_random_polygon(img, numSides, None, clip_rect,
                                          max_radius, radius, alpha, color,
-                                         color_key, pos, max_edges, brush_images)
+                                         color_key, pos, max_edges,
+                                         brush_images)
         else:
             result = draw_random_circle(img, clip_rect, max_radius, radius,
-                                        alpha, color, color_key, pos, brush_images)
+                                        alpha, color, color_key, pos,
+                                        brush_images)
 
         if(child_callback):
             child_callback(i, result, img)
