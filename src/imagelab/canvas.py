@@ -7,6 +7,8 @@ from abc import ABC, abstractmethod
 import pygame
 from imagelab.constants import SHAPE_CIRCLE
 from imagelab.geometry import get_polygon
+from imagelab.geometry import get_random_clip_rect
+from numpy.random import randint
 
 CANVAS_FONT_PATH = "./assets/fonts/luculent/luculent.ttf"
 
@@ -143,34 +145,76 @@ class CanvasActionDrawShape(CanvasAction):
         shape = self.params.get('shape')
         rotation = self.params.get('rotation')
         edges = self.params.get('edges')
+        brush_image = self.params.get('brush_image')
 
-        if SHAPE_CIRCLE == shape:
-            if alpha:
-                circle_surface = pygame.Surface((radius*2, radius*2))
-                circle_surface.set_colorkey(color_key)
-                circle_surface.fill(color_key)
-                circle_surface.set_alpha(alpha)
-                pygame.draw.circle(circle_surface, color,
-                                   (radius, radius), radius, 0)
-
-                canvas.blit(circle_surface, (pos[0] - radius, pos[1] - radius))
-
-            else:
+        if not brush_image and not alpha:
+            if SHAPE_CIRCLE == shape:
                 pygame.draw.circle(canvas, color, pos, radius, 0)
-        else:
-            if alpha:
-                polySurface = pygame.Surface((radius*2, radius*2))
-                polySurface.set_colorkey(color_key)
-                polySurface.fill(color_key)
-                polySurface.set_alpha(alpha)
-                pygame.draw.polygon(polySurface, color, get_polygon(
-                    edges, radius, (radius, radius), rotation))
-
-                canvas.blit(polySurface, (pos[0] - radius, pos[1] - radius))
-
             else:
                 pygame.draw.polygon(canvas, color,
                                     get_polygon(edges, radius, pos, rotation))
+            return
+
+        # TODO: all of this should live outside of the canvas action
+        # since it includes random calculations
+        if brush_image:
+            scaled_size = (radius*2, radius*2)
+            brush_size = brush_image.get_size()
+            max_sample_size = max(radius*2, min(brush_size))
+            sample_size = randint(radius*2, max_sample_size)
+            sample_rect = get_random_clip_rect(
+                brush_image.get_rect(),
+                sample_size,
+                sample_size,
+                # max(brush_size),
+                # max(brush_size),
+                True
+            )
+            brush_image = brush_image.subsurface(
+                brush_image.get_rect().clip(sample_rect)
+            )
+            brush_image = pygame.transform.smoothscale(
+                brush_image,
+                scaled_size
+            ).convert_alpha()
+            rotation = randint(1, 361)
+            if rotation:
+                # brush_image = pygame.transform.rotozoom(
+                # brush_image, rotation, 1)
+                brush_image = pygame.transform.rotate(
+                    brush_image, rotation)
+
+        shape_surface = pygame.Surface((radius*2, radius*2))
+        shape_surface.set_colorkey(color_key)
+        shape_surface.fill(color_key)
+        shape_surface.set_alpha(alpha)
+
+        if not brush_image:
+            if SHAPE_CIRCLE == shape:
+                pygame.draw.circle(shape_surface, color,
+                                   (radius, radius), radius, 0)
+            else:
+                poly = get_polygon(edges, radius, (radius, radius), rotation)
+                pygame.draw.polygon(shape_surface, color, poly)
+        else:
+            if SHAPE_CIRCLE == shape:
+                pygame.draw.circle(shape_surface, (255, 255, 255),
+                                   (radius, radius), radius, 0)
+            else:
+                poly = get_polygon(edges, radius, (radius, radius), rotation)
+                pygame.draw.polygon(shape_surface, (255, 255, 255), poly)
+
+            # rotation may have embiggened the brush image, so we want to
+            # center it
+            brush_image_size = brush_image.get_size()
+            center_offset = (
+                                (radius*2-brush_image_size[0])/2,
+                                (radius*2-brush_image_size[1])/2
+                            )
+            shape_surface.blit(brush_image, center_offset, None,
+                               pygame.BLEND_MIN)
+
+        canvas.blit(shape_surface, (pos[0] - radius, pos[1] - radius))
 
 
 class CanvasActionDrawText(CanvasAction):

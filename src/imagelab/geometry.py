@@ -6,10 +6,18 @@ from numpy.random import choice
 from imagelab.color import get_random_color
 
 
-def get_random_clip_rect(rect, clip_width, clip_height):
-    """ Take an input rectangle and return a random sub rectange """
-    x_pos = randint(0 - (clip_width/2), rect.width - (clip_width/2))
-    y_pos = randint(0 - (clip_height/2), rect.height - (clip_height/2))
+def get_random_clip_rect(rect, clip_width, clip_height, constrain=False):
+    """ Take an input rectangle and return a random sub rectange if constrain
+        is true, do not allow the output rect to extend beyond
+        input rect bounds
+    """
+    if constrain:
+        x_pos = randint(0, rect.width - clip_width)
+        y_pos = randint(0, rect.height - clip_height)
+    else:
+        x_pos = randint(0 - (clip_width/2), rect.width - (clip_width/2))
+        y_pos = randint(0 - (clip_height/2), rect.height - (clip_height/2))
+
     return (x_pos, y_pos, clip_width, clip_height)
 
 

@@ -76,6 +76,10 @@ def get_arg_parser():
                         help="""save [o]utput every N generations.
                         If not set, saves at gen-stop"""
                         )
+    parser.add_argument("-b", "--brush-images", nargs="+",
+                        help="""A list of images to use as a brush inside of
+                            whatever shape is used"""
+                        )
     parser.add_argument("-s", "--start-canvas",
                         help="""[s]tart with start-canvas instead of a blank
                         canvas. Useful for resuming old runs or just being

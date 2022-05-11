@@ -84,7 +84,7 @@ def mutate_evolve(surface, params):
     target = params.get('target')
     child_callback = params.get('child_callback', None)
     words = params.get('words', None)
-
+    brush_images = params.get("brush_images", None)
     # TODO: move above PARAMS into **kwargs and set default vaules via
     # new_params = defaults.copy()
     # new_params.update(params)
@@ -92,16 +92,11 @@ def mutate_evolve(surface, params):
     # whitelist = ['color', clip_rect', ...]
     # cleaned_params = {key: value for key, value in dict.items() if key
     #   in whitelist}
-
-    # TODO: dig this code from old repository and make it usable somehow
-    # morphResults = morphSurfaceFont(surface, children, clip_rect,["J","i","m"
-    # , "i","H","e","n","d","r","i","x"], 100, 100, None, alpha, color,
-    #  color_key, pos, return_actions=True)
     morph_results = morph_surface(surface, children, clip_rect, shape, words,
                                   max_radius, radius, alpha, color, color_key,
                                   pos, max_edges,
                                   child_callback=child_callback,
-                                  return_actions=False)
+                                  brush_images=brush_images)
 
     # get the list of surfaces
     # surface_candidates = morph_results[2]
@@ -128,7 +123,7 @@ def mutate_evolve(surface, params):
 def morph_surface(canvas, count=1, clip_rect=None, shape=SHAPE_CIRCLE,
                   words=None, max_radius=0, radius=None, alpha=None,
                   color=None, color_key=(0, 0, 0), pos=None, max_edges=None,
-                  child_callback=None, return_actions=False):
+                  child_callback=None, brush_images=None):
     """
        Takes an origin surface (canvas) and creates multiple (count) children.
        Then, randomly plots a 'shape' of random size color and position.
@@ -147,7 +142,7 @@ def morph_surface(canvas, count=1, clip_rect=None, shape=SHAPE_CIRCLE,
 
         if words:
             result = draw_random_word(img, words, None, clip_rect, max_radius,
-                                      radius, alpha, color, color_key, pos)
+                                      radius, alpha, color, color_key, pos, brush_images)
         elif shape in POLYGON_NUM_SIDES or shape == SHAPE_POLYGON:
             if shape == SHAPE_POLYGON:
                 numSides = None
@@ -155,10 +150,10 @@ def morph_surface(canvas, count=1, clip_rect=None, shape=SHAPE_CIRCLE,
                 numSides = POLYGON_NUM_SIDES[shape]
             result = draw_random_polygon(img, numSides, None, clip_rect,
                                          max_radius, radius, alpha, color,
-                                         color_key, pos, max_edges)
+                                         color_key, pos, max_edges, brush_images)
         else:
             result = draw_random_circle(img, clip_rect, max_radius, radius,
-                                        alpha, color, color_key, pos)
+                                        alpha, color, color_key, pos, brush_images)
 
         if(child_callback):
             child_callback(i, result, img)

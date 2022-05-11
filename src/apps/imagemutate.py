@@ -78,6 +78,8 @@ class App:
     target_surface = None
     canvas = None
 
+    brush_surfaces = None
+
     current_run = 0
     current_generation = 0
     current_child = 0
@@ -225,6 +227,16 @@ class App:
             self.options.get('target_path')
         )
         self.target_surface.convert(self.bit_depth)
+
+        if(self.options.get('brush_images')):
+            self.print(
+                "loading brush images {self.options.get('brush_images')}"
+            )
+            self.brush_surfaces = []
+            for surface_path in self.options.get('brush_images', []):
+                brush_surface = pygame.image.load(surface_path)
+                brush_surface.convert(self.bit_depth)
+                self.brush_surfaces.append(brush_surface)
 
     def initialize_movie_settings(self):
         self._movie_mode = True
@@ -722,6 +734,7 @@ class App:
                 'children': self.options.get('children', DEFAULT_CHILDREN),
                 'shape': self.options.get('shape', DEFAULT_SHAPE),
                 'words': self.options.get('words', None),
+                'brush_images': self.brush_surfaces,
                 'max_radius': max_radius,
                 'child_callback': self.child_callback
             }
