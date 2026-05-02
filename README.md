@@ -38,7 +38,7 @@ Common options:
 | `-v` | Verbose output |
 | `--seed N` | Fix the random seed for reproducible runs |
 | `--compare-strategy` | `euclidean` (default) or `lab` (perceptually weighted) |
-| `-j N` | Use N parallel worker processes for child generation (default: 1, serial); brief startup cost on first generation; most beneficial on longer runs; end-of-run stats include worker utilization |
+| `-j N` | Use N parallel worker processes for child generation (default: 1, serial); brief startup cost on first generation; most beneficial on longer runs; end-of-run stats include worker utilization. **Note:** the display may feel sluggish during each generation while workers compute — this is expected. |
 | `--save-on-exit` | Automatically save output when evolution completes |
 | `--close-on-exit` | Close the display immediately when evolution completes (default: stay open) |
 

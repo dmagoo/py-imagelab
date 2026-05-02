@@ -58,6 +58,9 @@ def _pygame_init():
     os.environ.setdefault('SDL_AUDIODRIVER', 'dummy')
     import pygame
     pygame.init()
+    # smoothscale and convert_alpha require a display surface to exist even on
+    # the dummy driver; set a minimal mode to satisfy that requirement.
+    pygame.display.set_mode((1, 1))
 
 
 def _child_worker(args):
@@ -71,6 +74,8 @@ def _child_worker(args):
      pos, max_edges, brush_arrays, clip_rect_tuple, surface_origin,
      score_fn_name) = args
 
+    # Imports are deferred to function scope because spawn workers start with a
+    # clean interpreter — top-level imports in the parent are not inherited.
     import time
     import pygame
     import numpy as np
@@ -138,10 +143,9 @@ def _child_worker(args):
             p = dict(result.params)
             if p.get('brush_image') is not None:
                 p['brush_image'] = pygame.surfarray.array3d(p['brush_image'])
-            if p.get('brush_sample_rect') is not None:
-                r = p['brush_sample_rect']
-                p['brush_sample_rect'] = (r.x, r.y, r.width, r.height)
             best_opcode = result.opcode
+            # pygame.Surface can't be pickled across process boundaries;
+            # convert to numpy array. brush_sample_rect is already a plain tuple.
             best_params = p
 
     elapsed = time.perf_counter() - start_time
@@ -240,13 +244,23 @@ def mutate_evolve(surface, params):
         ]
 
         try:
-            raw_results = pool.map(_child_worker, args_list)
+            # map_async + pump loop keeps the pygame event queue alive while
+            # workers compute. pool.map() blocks the main thread entirely,
+            # causing the OS to mark the window as not responding on long gens.
+            async_result = pool.map_async(_child_worker, args_list)
+            while not async_result.ready():
+                pygame.event.pump()
+                pygame.time.wait(50)
+            raw_results = async_result.get()
         finally:
             clip_shm.close()
             clip_shm.unlink()
             target_shm.close()
             target_shm.unlink()
 
+        # Side-channel: the @mutator decorator fixes the return shape of this
+        # function to (actions, surface, name), leaving no slot for extra data.
+        # Writing into the caller-supplied params dict is the escape hatch.
         params['_parallel_stats'] = {
             'worker_times': [r[3] for r in raw_results],
         }
@@ -265,10 +279,9 @@ def mutate_evolve(surface, params):
         if best_result is not None:
             opcode, result_params = best_result
             p = dict(result_params)
+            # Reconstruct brush_image from numpy array (was serialized for IPC).
             if p.get('brush_image') is not None:
                 p['brush_image'] = pygame.surfarray.make_surface(p['brush_image'])
-            if p.get('brush_sample_rect') is not None:
-                p['brush_sample_rect'] = pygame.Rect(*p['brush_sample_rect'])
             action = CanvasAction.deserialize([opcode, p])
             shape_actions = [action]
 

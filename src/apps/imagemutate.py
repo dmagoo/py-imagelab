@@ -177,6 +177,9 @@ class App:
 
         workers = self.options.get('workers', 1)
         if workers > 1:
+            # 'spawn' is required: pygame initialises SDL in the parent process,
+            # and forked children inherit that state in a broken way on Mac/Linux.
+            # spawn starts a clean interpreter each time, safe cross-platform.
             ctx = multiprocessing.get_context('spawn')
             self._pool = ctx.Pool(workers, initializer=_pygame_init)
 
@@ -510,6 +513,9 @@ class App:
         return f"{m}:{s:02d}"
 
     def render_hud(self, surface):
+        # Must render on self.screen, not on scaled_screen. scaled_screen is a
+        # temporary surface whose pixel dimensions change with window size — text
+        # blitted there would be stretched. self.screen is always 1:1 pixels.
         if self.hud_font is None:
             return
         screen_w, screen_h = surface.get_size()
