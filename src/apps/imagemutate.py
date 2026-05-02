@@ -7,7 +7,7 @@ import time
 import pygame
 import os
 import cv2
-from imagelab import mutation
+from imagelab import mutation, rng
 from imagelab.geometry import get_random_clip_rect
 from imagelab.geometry import resize_with_pad
 from imagelab.compare import match_score, get_match_percentage
@@ -152,6 +152,11 @@ class App:
 
     def run(self):
         """Run this app """
+        seed = self.options.get('seed')
+        if seed is None:
+            seed = int(rng.integers(0, 1000000))
+            self.options['seed'] = seed
+        rng.seed(seed)
         self.initialize_display()
         self.initialize_target()
         self.initialize_profiler()

@@ -36,6 +36,7 @@ Common options:
 | `-d <dir>` | Output directory |
 | `-N` | No display (headless) |
 | `-v` | Verbose output |
+| `--seed N` | Fix the random seed for reproducible runs |
 
 While running: `Space` prints stats, `S` saves image, `A` saves instructions, `H` toggles highlights, `I` toggles info overlay, arrow keys adjust children/radius.
 

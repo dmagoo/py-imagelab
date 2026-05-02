@@ -38,7 +38,7 @@
     #    ret = self.mutatorName, self.mutatorActions
     #    return pickle.dumps(ret)
 """
-from numpy.random import randint
+from imagelab import rng
 from imagelab.constants import (
     SHAPE_CIRCLE,
     SHAPE_POLYGON,
@@ -156,7 +156,7 @@ def morph_surface(
     i = 0
 
     if shape is None:
-        shape = SHAPE_SETTINGS_ARRAY[randint(0, 6)]
+        shape = SHAPE_SETTINGS_ARRAY[rng.integers(0, 6)]
 
     while i < count:
         i += 1
