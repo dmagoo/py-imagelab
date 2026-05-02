@@ -26,6 +26,5 @@ setup(
         'numpy',
         'pygame',
         'opencv-python',
-        'jsonpickle',
     ],
 )

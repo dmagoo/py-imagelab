@@ -4,14 +4,14 @@ A canvas contains a pygame surface and represents the current state and history
 of an drawing
 """
 from abc import ABC, abstractmethod
-import jsonpickle
 import base64
 import gzip
+import os
 import pygame
 from imagelab.constants import SHAPE_CIRCLE
 from imagelab.geometry import get_polygon
 
-CANVAS_FONT_PATH = "./assets/fonts/luculent/luculent.ttf"
+CANVAS_FONT_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "fonts", "luculent", "luculent.ttf")
 
 
 class Canvas:

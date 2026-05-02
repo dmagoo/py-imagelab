@@ -18,7 +18,7 @@ DEFAULT_SAVE_TEMPLATE = "%PREFIX-%FRAME%CHILDREN%GENERATION"
 # consider scaling based on display? nt(450*h/768))
 STATS_FONT_SIZE = 32
 # STATS_FONT_PATH = "./assets/fonts/RisingSun/RisingSun-Regular.ttf"
-STATS_FONT_PATH = "./assets/fonts/luculent/luculent.ttf"
+STATS_FONT_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "fonts", "luculent", "luculent.ttf")
 
 clock = pygame.time.Clock()
 
