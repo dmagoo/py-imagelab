@@ -38,7 +38,7 @@ STATS_FONT_SIZE = 32
 HUD_FONT_SIZE = 16
 HUD_PADDING = 4
 # STATS_FONT_PATH = "./assets/fonts/RisingSun/RisingSun-Regular.ttf"
-STATS_FONT_PATH = "./assets/fonts/luculent/luculent.ttf"
+STATS_FONT_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "fonts", "luculent", "luculent.ttf")
 
 MOVIE_EXTENSIONS = ('.mp4', '.mpeg')
 
@@ -120,6 +120,8 @@ class App:
     hud_font = None
     _evolution_complete = False
     _final_match_pct = None
+    _current_radius = None
+    _current_children = None
 
     # internal house-keeping
     _process_start_time = 0
@@ -528,18 +530,26 @@ class App:
         if self._evolution_complete:
             elapsed = self._format_elapsed(self.stats.get("total_clock_time", 0))
             match_str = f"{self._final_match_pct:.1f}%" if self._final_match_pct is not None else "?"
-            status = f"Done — {elapsed}  ·  match: {match_str}  (Enter or Esc to close)"
+            status = f"Done — {elapsed}  ·  match: {match_str}  (Enter/S: save  ·  Esc: close)"
         else:
             gen_stop = self.options.get('gen_stop', -1)
             gen_str = f"gen: {self.current_generation}"
             if gen_stop > 0:
                 gen_str += f"/{gen_stop}"
-            r = self.options.get('radius')
+
+            adaptive = self.options.get('adaptive_cheat_mode', False)
+            base_r = self.options.get('radius')
+            base_c = self.options.get('children', DEFAULT_CHILDREN)
+            cur_r = self._current_radius or base_r
+            cur_c = self._current_children or base_c
+
+            r_str = f"{cur_r}→{base_r}" if adaptive and cur_r != base_r else str(base_r)
+            c_str = f"{cur_c}→{base_c}" if adaptive and cur_c != base_c else str(base_c)
+
             if self.options.get('workers', 1) > 1:
-                status = f"{gen_str}  ·  workers: {self.options.get('workers')}  ·  maxR: {r}"
+                status = f"{gen_str}  ·  workers: {self.options.get('workers')}  ·  children: {c_str}  ·  maxR: {r_str}"
             else:
-                children = self.options.get('children', DEFAULT_CHILDREN)
-                status = f"{gen_str}  ·  child: {self.current_child}/{children}  ·  maxR: {r}"
+                status = f"{gen_str}  ·  child: {self.current_child}/{c_str}  ·  maxR: {r_str}"
 
         hotkeys = (
             "Esc: quit  ·  Space: stats dump  ·  Enter/S: snapshot  ·  A: save JSON"
@@ -559,8 +569,12 @@ class App:
                 if event.type == pygame.QUIT:
                     return
                 elif event.type == pygame.KEYDOWN:
-                    if event.key in (pygame.K_ESCAPE, pygame.K_RETURN):
+                    if event.key == pygame.K_ESCAPE:
                         return
+                    elif event.key in (pygame.K_RETURN, pygame.K_s):
+                        print(f"saved: {self.save()}")
+                    elif event.key == pygame.K_a:
+                        print(f"saved: {self.save(OUTPUT_MODE_INSTRUCTIONS)}")
                 elif event.type == pygame.VIDEORESIZE:
                     pass
             self.update_display()
@@ -797,6 +811,8 @@ class App:
             os.makedirs(os.path.dirname(savefile), exist_ok=True)
             pygame.image.save(self.canvas.surface, savefile)
 
+        return savefile
+
     def handle_events(self):
         """ handle keyboard inputs """
         for event in pygame.event.get():
@@ -873,6 +889,18 @@ class App:
         self.update_display_minimal()
         self.handle_events()
 
+    def _adaptive_params(self, match_pct):
+        base_radius = self.options.get('radius', DEFAULT_RADIUS)
+        base_children = self.options.get('children', DEFAULT_CHILDREN)
+        min_radius = self.options.get('min_radius') or max(base_radius // 8, 5)
+
+        t = max(0.0, min(1.0, match_pct / 100.0))
+        radius = max(min_radius, int(base_radius * (1.0 - t)))
+        # scale children inversely so hit probability per generation stays
+        # roughly constant as radius (and thus target area) shrinks
+        children = int(base_children * (base_radius / max(radius, 1)))
+        return radius, children
+
     def handle_evolution_tick(self, tick):
         max_radius = self.options.get('radius', DEFAULT_RADIUS)
 
@@ -885,10 +913,17 @@ class App:
                 max_radius*self.clipped_section_scale
             ))
 
+        children = self.options.get('children', DEFAULT_CHILDREN)
+        if self.options.get('adaptive_cheat_mode', False):
+            score = match_score(self.target_surface, self.canvas.surface)
+            max_radius, children = self._adaptive_params(get_match_percentage(score))
+        self._current_radius = max_radius
+        self._current_children = children
+
         mutator_params = {
             'target': self.target_surface,
             'clip_rect': self._clip_rect,
-            'children': self.options.get('children', DEFAULT_CHILDREN),
+            'children': children,
             'shape': self.options.get('shape', DEFAULT_SHAPE),
             'words': self.options.get('words', None),
             'brush_images': self.brush_surfaces,

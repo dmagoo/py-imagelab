@@ -2,6 +2,10 @@
 
 Evolves a target image by iteratively painting random shapes onto a canvas and keeping mutations that improve the match. Uses a genetic algorithm approach — each generation spawns N children, and the closest match to the target survives.
 
+**How it works:** py-imagelab is a blind evolutionary process — a million monkeys painting at random, kept honest by a simple rule: only improvements survive. Every shape placed is genuinely random; the algorithm has no knowledge of the target beyond a pixel-level score. The result is emergent, not directed.
+
+If you'd rather produce great-looking output faster than simulate evolution faithfully, `--adaptive-cheat-mode` scales radius and children automatically as the image converges — smaller shapes, more attempts, better late-run results. It works. It just isn't pure.
+
 ## Setup
 
 Requires Python 3.8+.
@@ -39,6 +43,8 @@ Common options:
 | `--seed N` | Fix the random seed for reproducible runs |
 | `--compare-strategy` | `euclidean` (default) or `lab` (perceptually weighted) |
 | `-j N` | Use N parallel worker processes for child generation (default: 1, serial); brief startup cost on first generation; most beneficial on longer runs; end-of-run stats include worker utilization. **Note:** the display may feel sluggish during each generation while workers compute — this is expected. |
+| `--adaptive-cheat-mode` | Scale radius down and children up as match % improves — better art, less pure simulation |
+| `--min-radius N` | Floor for adaptive radius (default: `max(radius // 8, 5)`) |
 | `--save-on-exit` | Automatically save output when evolution completes |
 | `--close-on-exit` | Close the display immediately when evolution completes (default: stay open) |
 
@@ -83,6 +89,9 @@ imagemutate sample/images/fox-720x1080.jpg -d output -r 150 -c 100 -g 1000 --see
 
 # Save instructions for replay instead of image
 imagemutate sample/images/fox-720x1080.jpg -d output -r 150 -c 100 -g 1000 -i
+
+# Adaptive cheat mode — converges faster, looks better, less pure
+imagemutate sample/images/fox-720x1080.jpg -d output -r 150 -c 100 -g 1000 -j 8 --adaptive-cheat-mode
 ```
 
 ### imagereplay

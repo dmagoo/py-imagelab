@@ -119,6 +119,15 @@ def get_arg_parser():
                         action="store_true", help="""[N]o display.
                         Don't show results in realtime"""
                         )
+    parser.add_argument("--adaptive-cheat-mode", default=False,
+                        action="store_true",
+                        help="scale radius down and children up as match % "
+                             "improves — better art, less pure simulation"
+                        )
+    parser.add_argument("--min-radius", default=None, type=int,
+                        help="floor for adaptive radius "
+                             "(default: max(radius // 8, 5))"
+                        )
     parser.add_argument("--close-on-exit", default=False,
                         action="store_true",
                         help="close the display immediately when evolution completes"
