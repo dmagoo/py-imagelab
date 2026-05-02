@@ -45,6 +45,9 @@ Common options:
 | `-j N` | Use N parallel worker processes for child generation (default: 1, serial); brief startup cost on first generation; most beneficial on longer runs; end-of-run stats include worker utilization. **Note:** the display may feel sluggish during each generation while workers compute — this is expected. |
 | `--adaptive-cheat-mode` | Scale radius down and children up as match % improves — better art, less pure simulation |
 | `--min-radius N` | Floor for adaptive radius (default: `max(radius // 8, 5)`) |
+| `-p <prefix>` | Prefix output filenames (default: `img`) — useful for namespacing runs, e.g. `-p fox-lab` |
+| `-o N` | Auto-save every N generations |
+| `-t <template>` | Full filename template — supports `%PREFIX`, `%GENERATION`, `%CHILDREN`, `%FRAME` |
 | `--save-on-exit` | Automatically save output when evolution completes |
 | `--close-on-exit` | Close the display immediately when evolution completes (default: stay open) |
 
