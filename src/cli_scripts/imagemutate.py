@@ -121,7 +121,7 @@ def get_arg_parser():
                         )
     parser.add_argument("--adaptive-cheat-mode", default=False,
                         action="store_true",
-                        help="scale radius down and children up as match % "
+                        help="scale radius down and children up as match %% "
                              "improves — better art, less pure simulation"
                         )
     parser.add_argument("--min-radius", default=None, type=int,
