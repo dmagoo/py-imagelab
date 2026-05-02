@@ -37,8 +37,22 @@ Common options:
 | `-N` | No display (headless) |
 | `-v` | Verbose output |
 | `--seed N` | Fix the random seed for reproducible runs |
+| `--compare-strategy` | `euclidean` (default) or `lab` (perceptually weighted) |
 
-While running: `Space` prints stats, `S` saves image, `A` saves instructions, `H` toggles highlights, `I` toggles info overlay, arrow keys adjust children/radius.
+While running:
+
+| Key | Action |
+|-----|--------|
+| `Esc` | Quit |
+| `Space` | Print stats to console |
+| `S` | Save image |
+| `A` | Save instructions file (JSON) |
+| `Enter` | Save (uses default output mode) |
+| `H` | Toggle highlight overlay (shows current working region) |
+| `I` | Toggle info overlay (gen / child / radius on screen) |
+| `←` / `→` | Decrease / increase children count |
+| `↑` / `↓` | Increase / decrease max radius |
+| `Shift` + arrow | Adjust by 10 instead of 1 |
 
 ### imagereplay
 

@@ -106,6 +106,11 @@ def get_arg_parser():
     parser.add_argument("--seed", default=None, type=int,
                         help="random seed for reproducible runs"
                         )
+    parser.add_argument("--compare-strategy", default="euclidean",
+                        choices=["euclidean", "lab"],
+                        help="comparison strategy: euclidean (default) or lab "
+                             "(perceptually weighted)"
+                        )
     parser.add_argument("-N", "--no-display", default=False,
                         action="store_true", help="""[N]o display.
                         Don't show results in realtime"""

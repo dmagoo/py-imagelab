@@ -9,6 +9,7 @@ import pygame
 import os
 import cv2
 from imagelab import mutation, rng
+from imagelab.compare import STRATEGIES
 from imagelab.geometry import get_random_clip_rect
 from imagelab.geometry import resize_with_pad
 from imagelab.compare import match_score, get_match_percentage
@@ -20,7 +21,7 @@ OUTPUT_MODE_INSTRUCTIONS = 1
 DEFAULT_DISPLAY_BG_COLOR = (3, 3, 100)
 DEFAULT_DISPLAY_HILIGHT_COLOR = (200, 200, 100)
 DEFAULT_DISPLAY_HILIGHT_SUB_COLOR = (100, 100, 40)
-DEFAULT_DISPLAY_HILIGHT_WIDTH = 1
+DEFAULT_DISPLAY_HILIGHT_WIDTH = 3
 DEFAULT_DISPLAY_MARGIN_PX = 20
 DEFAULT_BIT_DEPTH = 32
 
@@ -105,7 +106,7 @@ class App:
     morph_clipped_sections = True
     # how large is the zome in relation to the radius
     # must be at least two to allow for full radius
-    clipped_section_scale = 2
+    clipped_section_scale = 4
     # after how many ticks should we find a new zone?
     # having a value greater than one results in multiple generations "working"
     # in the same area of the canvas
@@ -124,6 +125,8 @@ class App:
     _frame_clock_start_time = 0
 
     _last_flip_time = 0
+    _cached_scaled_size = None
+    _cached_screen_size = None
 
     _movie_mode = False
 
@@ -467,14 +470,12 @@ class App:
             )
 
         screen_size = self.screen.get_size()
-        scaled_size = resize_with_pad(
-            tmp_bg.get_size(), screen_size
-        )
+        if screen_size != self._cached_screen_size:
+            self._cached_screen_size = screen_size
+            self._cached_scaled_size = resize_with_pad(tmp_bg.get_size(), screen_size)
+        scaled_size = self._cached_scaled_size
 
-        scaled_screen = pygame.transform.smoothscale(
-            tmp_bg,
-            scaled_size
-        )
+        scaled_screen = pygame.transform.smoothscale(tmp_bg, scaled_size)
 
         if self._show_info:
             self.render_stats(
@@ -553,15 +554,35 @@ class App:
                     self.display_margin_px)
             )
 
-        # todo: move highlight into subroutine line stats and update here
+        tmp_bg = self.background.copy()
+
+        if self._show_highlights and self._clip_sub_rect:
+            pygame.draw.rect(
+                tmp_bg,
+                self.display_highlight_sub_color,
+                self._clip_sub_rect.move(
+                    self.display_margin_px, self.display_margin_px
+                ),
+                self.display_highlight_width
+            )
+
+        if self._show_highlights and self._clip_rect:
+            pygame.draw.rect(
+                tmp_bg,
+                self.display_highlight_color,
+                self._clip_rect.move(
+                    self.display_margin_px, self.display_margin_px
+                ),
+                self.display_highlight_width
+            )
 
         screen_size = self.screen.get_size()
         scaled_size = resize_with_pad(
-            self.background.get_size(), screen_size
+            tmp_bg.get_size(), screen_size
         )
 
         scaled_screen = pygame.transform.smoothscale(
-            self.background,
+            tmp_bg,
             scaled_size
         )
 
@@ -705,13 +726,9 @@ class App:
         self.update_profiler()
 
     def child_callback(self, i, canvas_action, img):
-        now_time = time.perf_counter()
-        time_since_flip = now_time - self._last_flip_time
         self.current_child = i
-
-        if time_since_flip > 0.1:
-            pass
-        else:
+        now_time = time.perf_counter()
+        if now_time - self._last_flip_time <= 0.1:
             return
 
         self._last_flip_time = now_time
@@ -747,7 +764,11 @@ class App:
                 'words': self.options.get('words', None),
                 'brush_images': self.brush_surfaces,
                 'max_radius': max_radius,
-                'child_callback': self.child_callback
+                'child_callback': self.child_callback,
+                'score_fn': STRATEGIES.get(
+                    self.options.get('compare_strategy', 'euclidean'),
+                    STRATEGIES['euclidean']
+                ),
             }
         )
 

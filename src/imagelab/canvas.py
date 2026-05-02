@@ -145,7 +145,7 @@ class CanvasAction(ABC):
         return [self.opcode, filtered_params]
 
     @abstractmethod
-    def run(self, canvas):
+    def run(self, canvas, origin=(0, 0)):
         pass
 
 
@@ -171,7 +171,7 @@ class CanvasActionDrawShape(CanvasAction):
                 ).decode('utf-8')
         return super().serialize_binary_param(key, data)
 
-    def run(self, canvas):
+    def run(self, canvas, origin=(0, 0)):
         alpha = self.params.get('alpha', 220)
         color = self.params.get('color')
         pos = self.params.get('pos')
@@ -184,12 +184,15 @@ class CanvasActionDrawShape(CanvasAction):
         brush_sample_rect = self.params.get('brush_sample_rect')
         brush_rotation = self.params.get('brush_rotation', 0)
 
+        ox, oy = origin
+        draw_pos = (pos[0] - ox, pos[1] - oy)
+
         if not brush_image and not alpha:
             if SHAPE_CIRCLE == shape:
-                pygame.draw.circle(canvas, color, pos, radius, 0)
+                pygame.draw.circle(canvas, color, draw_pos, radius, 0)
             else:
                 pygame.draw.polygon(canvas, color,
-                                    get_polygon(edges, radius, pos, rotation))
+                                    get_polygon(edges, radius, draw_pos, rotation))
             return
 
         # TODO: all of this should live outside of the canvas action
@@ -240,20 +243,21 @@ class CanvasActionDrawShape(CanvasAction):
             shape_surface.blit(brush_image, center_offset, None,
                                pygame.BLEND_MIN)
 
-        canvas.blit(shape_surface, (pos[0] - radius, pos[1] - radius))
+        canvas.blit(shape_surface, (draw_pos[0] - radius, draw_pos[1] - radius))
 
 
 class CanvasActionDrawText(CanvasAction):
     """Draw text on the canvas"""
     opcode = "t"
 
-    def run(self, canvas):
+    def run(self, canvas, origin=(0, 0)):
         alpha = self.params.get('alpha', 220)
         color = self.params.get('color')
         pos = self.params.get('pos')
         radius = self.params.get('radius')
         rotation = self.params.get('rotation')
         text = self.params.get('text')
+        ox, oy = origin
 
         font_size = estimate_font_size(text, radius)
 
@@ -270,7 +274,7 @@ class CanvasActionDrawText(CanvasAction):
         if rotation:
             text_surface = pygame.transform.rotozoom(text_surface, rotation, 1)
 
-        canvas.blit(text_surface, (pos[0] - radius, pos[1] - radius))
+        canvas.blit(text_surface, (pos[0] - radius - ox, pos[1] - radius - oy))
 
 
 def estimate_font_size(text, radius):

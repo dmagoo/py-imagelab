@@ -10,7 +10,7 @@ from imagelab.canvas import CanvasActionDrawText
 
 def draw_random_circle(canvas, clip_rect=None, max_radius=20, radius=None,
                        alpha=None, color=None, color_key=(0, 0, 0), pos=None,
-                       brush_images=None):
+                       brush_images=None, surface_origin=(0, 0)):
     """Apply paint to the canvas, return details of the circle."""
 
     (color, pos, radius) = get_random_circle(canvas, clip_rect, max_radius,
@@ -34,7 +34,7 @@ def draw_random_circle(canvas, clip_rect=None, max_radius=20, radius=None,
         params['brush_rotation'] = rng.integers(1, 361)
 
     ca = CanvasActionDrawShape(params)
-    ca.run(canvas)
+    ca.run(canvas, origin=surface_origin)
 
     return ca
 
@@ -42,7 +42,7 @@ def draw_random_circle(canvas, clip_rect=None, max_radius=20, radius=None,
 def draw_random_polygon(canvas, edges=None, rotation=None, clip_rect=None,
                         max_radius=20, radius=None, alpha=None, color=None,
                         color_key=(0, 0, 0), pos=None, max_edges=8,
-                        brush_images=None):
+                        brush_images=None, surface_origin=(0, 0)):
     """Apply paint to the canvas, return details of the polygon."""
 
     (color, pos, radius, edges, rotation) = get_random_polygon(
@@ -68,7 +68,7 @@ def draw_random_polygon(canvas, edges=None, rotation=None, clip_rect=None,
         params['brush_rotation'] = rng.integers(1, 361)
 
     ca = CanvasActionDrawShape(params)
-    ca.run(canvas)
+    ca.run(canvas, origin=surface_origin)
 
     return ca
 
@@ -76,7 +76,7 @@ def draw_random_polygon(canvas, edges=None, rotation=None, clip_rect=None,
 def draw_random_word(canvas, words, rotation=None, clip_rect=None,
                      max_radius=20, radius=None, alpha=None, color=None,
                      color_key=(0, 0, 0), pos=None,
-                     brush_images=None):
+                     brush_images=None, surface_origin=(0, 0)):
     """ Apply paint to the canvas, return details of a random word from
         candidate list """
 
@@ -90,6 +90,6 @@ def draw_random_word(canvas, words, rotation=None, clip_rect=None,
               'text': word}
 
     ca = CanvasActionDrawText(params)
-    ca.run(canvas)
+    ca.run(canvas, origin=surface_origin)
 
     return ca
