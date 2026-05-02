@@ -32,7 +32,7 @@ Common options:
 | `-S <shape>` | Shape type: circle, polygon, triangle, etc. |
 | `-W word1 word2` | Use words instead of shapes |
 | `-b img1 img2` | Use images as brushes inside shapes |
-| `-i` | Save drawing instructions (JSON) instead of image |
+| `-i` | Save drawing instructions (JSON) instead of image — includes seed, run parameters, and full history for replay |
 | `-d <dir>` | Output directory |
 | `-N` | No display (headless) |
 | `-v` | Verbose output |

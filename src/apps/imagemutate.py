@@ -4,6 +4,7 @@ Produce a target image by randomly mutating a base canvas
 """
 import json
 import time
+import datetime
 import pygame
 import os
 import cv2
@@ -625,14 +626,19 @@ class App:
         if output_mode == OUTPUT_MODE_INSTRUCTIONS:
             savefile = self.get_save_file_name('json')
             os.makedirs(os.path.dirname(savefile), exist_ok=True)
-            output = open(savefile, 'w')
-            output.write(json.dumps(self.canvas.serialize()))
-            #print(self.canvas.serialize())
-            # savefile = self.get_save_file_name('pkl')
-            # output = open(savefile, 'wb')
-            # pickle.dump(self.canvas.serialize(), output, 1)
-
-            output.close()
+            canvas_data = self.canvas.serialize()
+            output_data = {
+                "version": 1,
+                "seed": self.options.get('seed'),
+                "timestamp": datetime.datetime.utcnow().isoformat(),
+                "gen_stop": self.options.get('gen_stop'),
+                "children": self.options.get('children'),
+                "radius": self.options.get('radius'),
+                "shape": self.options.get('shape'),
+                **canvas_data,
+            }
+            with open(savefile, 'w') as output:
+                output.write(json.dumps(output_data))
         else:
             savefile = self.get_save_file_name(DEFAULT_IMAGE_SAVE_EXT)
             self.print(f"saving file {savefile}")

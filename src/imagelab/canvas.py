@@ -72,7 +72,8 @@ class Canvas:
 
     @staticmethod
     def deserialize(serialized_data, autorun=False):
-        size, hist = serialized_data
+        size = serialized_data["size"]
+        hist = serialized_data["history"]
         surface = pygame.Surface(size)
         canvas = Canvas(surface)
 
@@ -87,15 +88,13 @@ class Canvas:
         return canvas
 
     def __json__(self):
-        # history = [item.serialize() for item in self.history]
         history = []
         binary_map = {}
         for item in self.history:
             history.append(item.serialize())
             binary_map.update(item.binary_map)
 
-        print(binary_map)
-        return [self.size, history, binary_map]
+        return {"size": list(self.size), "history": history, "binaries": binary_map}
 
 
 class CanvasAction(ABC):
