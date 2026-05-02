@@ -4,6 +4,9 @@ A canvas contains a pygame surface and represents the current state and history
 of an drawing
 """
 from abc import ABC, abstractmethod
+import jsonpickle
+import base64
+import gzip
 import pygame
 from imagelab.constants import SHAPE_CIRCLE
 from imagelab.geometry import get_polygon
@@ -84,8 +87,15 @@ class Canvas:
         return canvas
 
     def __json__(self):
-        history = [item.serialize() for item in self.history]
-        return [self.size, history]
+        # history = [item.serialize() for item in self.history]
+        history = []
+        binary_map = {}
+        for item in self.history:
+            history.append(item.serialize())
+            binary_map.update(item.binary_map)
+
+        print(binary_map)
+        return [self.size, history, binary_map]
 
 
 class CanvasAction(ABC):
@@ -100,6 +110,7 @@ class CanvasAction(ABC):
     """
     params = {}
     opcode = '0'
+    _binary_params = []
 
     def __init__(self, params):
         self.params = params
@@ -109,7 +120,8 @@ class CanvasAction(ABC):
         # return json.dumps([self.opcode, self.params])
         return self.__json__()
 
-    def deserialize(data):
+    @staticmethod
+    def deserialize(data, cached_binaries=None):
         # self.params = pickle.loads(params)
         [opcode, params] = data
 
@@ -122,8 +134,16 @@ class CanvasAction(ABC):
 
         return None
 
+    def serialize_binary_param(self, key, data):
+        return data
+
+    @property
+    def binary_map(self):
+        return {id(self.params[key]): self.serialize_binary_param(key, self.params[key]) for key in self.params if self.params[key] is not None and key in self._binary_params}
+
     def __json__(self):
-        return [self.opcode, self.params]
+        filtered_params = {key: (self.params[key] if self.params[key] is None or key not in self._binary_params else id(self.params[key])) for key in self.params }
+        return [self.opcode, filtered_params]
 
     @abstractmethod
     def run(self, canvas):
@@ -133,6 +153,24 @@ class CanvasAction(ABC):
 class CanvasActionDrawShape(CanvasAction):
     """Draw a shape on the canvas"""
     opcode = "s"
+    _binary_params = ['brush_image']
+
+    def deserialize_binary_param(self, key, data):
+        if key == 'brush_image':
+            # not tested, probably won't work because of the utf-8 bit?
+            # also missing size dimensions
+            return pygame.image.fromstring(gzip.decompress(base64.b64decode(data)))
+        return super().deserialize_binary_param(key, data)
+
+    def serialize_binary_param(self, key, data):
+        if key == 'brush_image':
+            return None if not self.params.get('brush_image') else \
+                base64.b64encode(
+                    gzip.compress(pygame.image.tostring(
+                        self.params.get('brush_image'), 'RGBA'
+                    ))
+                ).decode('utf-8')
+        return super().serialize_binary_param(key, data)
 
     def run(self, canvas):
         alpha = self.params.get('alpha', 220)

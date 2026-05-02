@@ -4,5 +4,5 @@ from numpy.random import randint
 
 
 def get_random_color():
-    """ Return a random RGB triplet """
+    """Return a random RGB triplet"""
     return (randint(0, 255), randint(0, 255), randint(0, 255))

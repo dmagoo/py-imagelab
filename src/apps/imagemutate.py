@@ -230,7 +230,7 @@ class App:
 
         if(self.options.get('brush_images')):
             self.print(
-                "loading brush images {self.options.get('brush_images')}"
+                f"loading brush images {self.options.get('brush_images')}"
             )
             self.brush_surfaces = []
             for surface_path in self.options.get('brush_images', []):
@@ -622,7 +622,7 @@ class App:
             os.makedirs(os.path.dirname(savefile), exist_ok=True)
             output = open(savefile, 'w')
             output.write(json.dumps(self.canvas.serialize()))
-
+            #print(self.canvas.serialize())
             # savefile = self.get_save_file_name('pkl')
             # output = open(savefile, 'wb')
             # pickle.dump(self.canvas.serialize(), output, 1)

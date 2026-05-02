@@ -5,7 +5,6 @@ from numpy.random import randint
 from numpy.random import choice
 from imagelab.color import get_random_color
 
-
 def get_random_clip_rect(rect, clip_width, clip_height, constrain=False):
     """ Take an input rectangle and return a random sub rectange if constrain
         is true, do not allow the output rect to extend beyond

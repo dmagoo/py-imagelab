@@ -1,8 +1,6 @@
 import pygame
 import numpy as np
 
-global VERBOSE
-
 
 class ConvolutionFilter:
     """The abstract convolution filter"""
@@ -254,15 +252,15 @@ def average_subtract_outlier_surfaces_a(surface_list):
         # create a mask of the largest deviant from the average
         s_array = pygame.surfarray.array3d(s).astype(int)
 
-    if s_mask is None:
-        s_mask = s_array
-    else:
-        np.putmask(
-            s_mask,
-            np.abs(np.subtract(s_sum, s_array)) >
-            np.abs(np.subtract(s_sum, s_mask)),
-            s_array
-        )
+        if s_mask is None:
+            s_mask = s_array
+        else:
+            np.putmask(
+                s_mask,
+                np.abs(np.subtract(s_sum, s_array)) >
+                np.abs(np.subtract(s_sum, s_mask)),
+                s_array
+            )
 
     # todo, something w/ s_mask itself. It's puuurdy cool!
     s_sum = np.subtract(s_sum, s_mask)

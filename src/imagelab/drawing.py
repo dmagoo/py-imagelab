@@ -8,12 +8,12 @@ from imagelab.canvas import CanvasActionDrawShape
 from imagelab.canvas import CanvasActionDrawText
 
 
-def draw_random_circle(canvas, clipRect=None, max_radius=20, radius=None,
+def draw_random_circle(canvas, clip_rect=None, max_radius=20, radius=None,
                        alpha=None, color=None, color_key=(0, 0, 0), pos=None,
                        brush_images=None):
     """Apply paint to the canvas, return details of the circle."""
 
-    (color, pos, radius) = get_random_circle(canvas, clipRect, max_radius,
+    (color, pos, radius) = get_random_circle(canvas, clip_rect, max_radius,
                                              radius, color, pos)
 
     brush_image = choice(brush_images, size=None) if brush_images else None
@@ -39,14 +39,14 @@ def draw_random_circle(canvas, clipRect=None, max_radius=20, radius=None,
     return ca
 
 
-def draw_random_polygon(canvas, edges=None, rotation=None, clipRect=None,
+def draw_random_polygon(canvas, edges=None, rotation=None, clip_rect=None,
                         max_radius=20, radius=None, alpha=None, color=None,
                         color_key=(0, 0, 0), pos=None, max_edges=8,
                         brush_images=None):
     """Apply paint to the canvas, return details of the polygon."""
 
     (color, pos, radius, edges, rotation) = get_random_polygon(
-        canvas, edges, rotation, clipRect, max_radius, radius, color,
+        canvas, edges, rotation, clip_rect, max_radius, radius, color,
         pos, max_edges)
 
     brush_image = choice(brush_images, size=None) if brush_images else None

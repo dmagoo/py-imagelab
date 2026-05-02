@@ -12,7 +12,7 @@ DEFAULT_DISPLAY_BG_COLOR = (3, 3, 100)
 DEFAULT_DISPLAY_MARGIN_PX = 20
 DEFAULT_BIT_DEPTH = 32
 
-DEFAULT_IMAGE_SAVE_EXT = 'png'
+DEFAULT_IMAGE_SAVE_EXT = "png"
 DEFAULT_SAVE_TEMPLATE = "%PREFIX-%FRAME%CHILDREN%GENERATION"
 
 # consider scaling based on display? nt(450*h/768))
@@ -25,8 +25,9 @@ clock = pygame.time.Clock()
 
 class App:
     """
-        Replay a saved output file.
+    Replay a saved output file.
     """
+
     options = {}
     running = False
 
@@ -44,6 +45,11 @@ class App:
     bit_depth = None
 
     stats_font = None
+
+    current_run = 0
+    current_generation = 0
+    current_frame = None
+    _movie_mode = False
 
     _last_flip_time = 0
     _show_info = False
@@ -66,7 +72,7 @@ class App:
         self.options = options
 
     def run(self):
-        """Run this app """
+        """Run this app"""
         self.load()
         self.initialize_display()
         self.running = True
@@ -74,7 +80,7 @@ class App:
             self.main_loop()
 
     def load(self):
-        with open(self.options.get('input_path'), 'r') as f:
+        with open(self.options.get("input_path"), "r") as f:
             data = json.load(f)
             self.canvas = Canvas.deserialize(data)
 
@@ -85,7 +91,7 @@ class App:
 
     def initialize_display(self):
         """Set up the display"""
-        if self.options.get('no_display', False):
+        if self.options.get("no_display", False):
             return
 
         self.print("initializing display")
@@ -96,56 +102,45 @@ class App:
         pygame.init()
 
         self.stats_font = pygame.freetype.Font(
-            os.path.normpath(STATS_FONT_PATH),
-            STATS_FONT_SIZE
+            os.path.normpath(STATS_FONT_PATH), STATS_FONT_SIZE
         )
 
-        if self.options.get('iconify', False):
+        if self.options.get("iconify", False):
             pygame.display.iconify()
 
-        screen_width = self.canvas.surface.get_width() + (
-            self.display_margin_px * 2)
+        screen_width = self.canvas.surface.get_width() + (self.display_margin_px * 2)
 
-        screen_height = (
-            self.canvas.surface.get_height() + self.display_margin_px * 2
-        )
+        screen_height = self.canvas.surface.get_height() + self.display_margin_px * 2
 
         screenrect = pygame.Rect(0, 0, screen_width, screen_height)
 
         self.screen = pygame.display.set_mode(
-            (600, 450),
-            pygame.RESIZABLE, self.bit_depth
+            (600, 450), pygame.RESIZABLE, self.bit_depth
         )
 
         self.print(f"setting display {screenrect.size} {self.bit_depth}bit")
         self.background = pygame.Surface(screenrect.size)
 
     def update_display(self):
-        """ Draw current progress to the screen. """
-        if self.options.get('no_display', False):
+        """Draw current progress to the screen."""
+        if self.options.get("no_display", False):
             # required even with display off so we can gather keypresses
             pygame.display.update()
             return
 
         self.background.fill(self.display_bg_color)
         self.background.blit(
-            self.canvas.surface,
-            (self.display_margin_px, self.display_margin_px)
+            self.canvas.surface, (self.display_margin_px, self.display_margin_px)
         )
 
         screen_size = self.screen.get_size()
-        scaled_size = resize_with_pad(
-            self.background.get_size(), screen_size
-        )
+        scaled_size = resize_with_pad(self.background.get_size(), screen_size)
 
-        scaled_screen = pygame.transform.smoothscale(
-            self.background,
-            scaled_size
-        )
+        scaled_screen = pygame.transform.smoothscale(self.background, scaled_size)
 
         origin = (
-            screen_size[0]/2 - scaled_size[0]/2,
-            screen_size[1]/2 - scaled_size[1]/2
+            screen_size[0] / 2 - scaled_size[0] / 2,
+            screen_size[1] / 2 - scaled_size[1] / 2,
         )
         self.screen.blit(scaled_screen, origin)
 
@@ -153,46 +148,46 @@ class App:
         pygame.display.update()
 
     def get_default_save_file_prefix(self):
-        return 'imagelab'
+        return "imagelab"
 
     def get_save_file_name(self, ext=None, tpt=None):
-        """ Return a save-file name based on template configuration and
-            app state """
+        """Return a save-file name based on template configuration and
+        app state"""
         if tpt is None:
-            tpt = self.options.get('save_template', DEFAULT_SAVE_TEMPLATE)
+            tpt = self.options.get("save_template", DEFAULT_SAVE_TEMPLATE)
 
-        tpt = tpt.replace('%PREFIX', self.options.get(
-            'prefix', self.get_default_save_file_prefix()
-        ))
+        tpt = tpt.replace(
+            "%PREFIX", self.options.get("prefix", self.get_default_save_file_prefix())
+        )
 
-        if(self.options.get('runs', 1) != 1):
-            tpt = tpt.replace('%RUN', 'r%06d' % self.current_run)
+        if self.options.get("runs", 1) != 1:
+            tpt = tpt.replace("%RUN", "r%06d" % self.current_run)
         else:
-            tpt = tpt.replace('%RUN', '')
+            tpt = tpt.replace("%RUN", "")
 
-        tpt = tpt.replace('%CHILDREN', 'c%06d' % self.options.get('children'))
-        tpt = tpt.replace('%WIDTH', 'w%04d' % self.canvas.size[0])
-        tpt = tpt.replace('%HEIGHT', 'h%04d' % self.canvas.size[1])
-        tpt = tpt.replace('%GENERATION', 'g%06d' % self.current_generation)
+        tpt = tpt.replace("%CHILDREN", "c%06d" % self.options.get("children"))
+        tpt = tpt.replace("%WIDTH", "w%04d" % self.canvas.size[0])
+        tpt = tpt.replace("%HEIGHT", "h%04d" % self.canvas.size[1])
+        tpt = tpt.replace("%GENERATION", "g%06d" % self.current_generation)
 
         if self._movie_mode:
-            tpt = tpt.replace('%FRAME', 'f%09d' % self.current_frame)
+            tpt = tpt.replace("%FRAME", "f%09d" % self.current_frame)
         else:
-            tpt = tpt.replace('%FRAME', '')
+            tpt = tpt.replace("%FRAME", "")
 
         if ext is not None:
-            tpt = tpt + '.' + ext
+            tpt = tpt + "." + ext
 
-        path = self.options.get('save_directory', '.')
+        path = self.options.get("save_directory", ".")
 
         return os.path.join(path, tpt)
 
     def print(self, output_string):
-        if self.options.get('verbose', False):
+        if self.options.get("verbose", False):
             print(output_string)
 
     def save(self, output_mode=None):
-        """ Output current state to file """
+        """Output current state to file"""
         self.print("saving output")
         savefile = self.get_save_file_name(DEFAULT_IMAGE_SAVE_EXT)
         self.print(f"saving file {savefile}")
@@ -200,7 +195,7 @@ class App:
         pygame.image.save(self.canvas.surface, savefile)
 
     def handle_events(self):
-        """ handle keyboard inputs """
+        """handle keyboard inputs"""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 raise SystemExit("User Quit")
@@ -226,10 +221,6 @@ class App:
                 amount = 1
 
             if keys[pygame.K_LEFT]:
-                self.options['speed'] = max(
-                    1, self.options.get('speed') - amount
-                )
+                self.options["speed"] = max(1, self.options.get("speed") - amount)
             if keys[pygame.K_RIGHT]:
-                self.options['speed'] = min(
-                    10000, self.options.get('speed') + amount
-                )
+                self.options["speed"] = min(10000, self.options.get("speed") + amount)
