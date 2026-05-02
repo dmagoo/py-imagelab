@@ -8,7 +8,9 @@ import datetime
 import pygame
 import os
 import cv2
+import multiprocessing
 from imagelab import mutation, rng
+from imagelab.mutation import _pygame_init
 from imagelab.compare import STRATEGIES
 from imagelab.geometry import get_random_clip_rect
 from imagelab.geometry import resize_with_pad
@@ -33,6 +35,8 @@ DEFAULT_SAVE_TEMPLATE = "%PREFIX-%FRAME%CHILDREN%GENERATION"
 
 # consider scaling based on display? nt(450*h/768))
 STATS_FONT_SIZE = 32
+HUD_FONT_SIZE = 16
+HUD_PADDING = 4
 # STATS_FONT_PATH = "./assets/fonts/RisingSun/RisingSun-Regular.ttf"
 STATS_FONT_PATH = "./assets/fonts/luculent/luculent.ttf"
 
@@ -113,6 +117,9 @@ class App:
     clip_change_rate = 1
 
     stats_font = None
+    hud_font = None
+    _evolution_complete = False
+    _final_match_pct = None
 
     # internal house-keeping
     _process_start_time = 0
@@ -129,6 +136,8 @@ class App:
     _cached_screen_size = None
 
     _movie_mode = False
+    _pool = None
+    _last_worker_times = []
 
     # current clip rectangle being used to optimize comparison
     _clip_rect = None
@@ -166,17 +175,28 @@ class App:
         self.initialize_profiler()
         self.running = True
 
-        runs = self.options.get('runs', 1)
-        complete = False
-        self.current_run = 0
-        while not complete and self.running:
-            if(self._movie_mode):
-                self.evolve_movie_mode()
-            else:
-                self.evolve_image_mode()
-            self.current_run += 1
-            if self.current_run >= runs:
-                complete = True
+        workers = self.options.get('workers', 1)
+        if workers > 1:
+            ctx = multiprocessing.get_context('spawn')
+            self._pool = ctx.Pool(workers, initializer=_pygame_init)
+
+        try:
+            runs = self.options.get('runs', 1)
+            complete = False
+            self.current_run = 0
+            while not complete and self.running:
+                if(self._movie_mode):
+                    self.evolve_movie_mode()
+                else:
+                    self.evolve_image_mode()
+                self.current_run += 1
+                if self.current_run >= runs:
+                    complete = True
+        finally:
+            if self._pool is not None:
+                self._pool.terminate()
+                self._pool.join()
+                self._pool = None
 
     def initialize_display(self):
         """Set up the display"""
@@ -196,6 +216,10 @@ class App:
         self.stats_font = pygame.freetype.Font(
             os.path.normpath(STATS_FONT_PATH),
             STATS_FONT_SIZE
+        )
+        self.hud_font = pygame.freetype.Font(
+            os.path.normpath(STATS_FONT_PATH),
+            HUD_FONT_SIZE
         )
 
         if self.options.get('iconify', False):
@@ -335,33 +359,47 @@ class App:
 
         self.current_generation = 0
 
-        while not complete and self.running:
-            """ Make a random rect.  Allow room to start a circle off screen
-                The purpose of this is so that we only create children inside a
-                common subdivision of the canvas.  This allows quicker
-                comparison, since it's not against the entire canvas.
-            """
-            # start of tick house-keeping
-            self.handle_tick_start()
-            # do the actual work for this tick
+        try:
+            while not complete and self.running:
+                """ Make a random rect.  Allow room to start a circle off screen
+                    The purpose of this is so that we only create children inside a
+                    common subdivision of the canvas.  This allows quicker
+                    comparison, since it's not against the entire canvas.
+                """
+                # start of tick house-keeping
+                self.handle_tick_start()
+                # do the actual work for this tick
 
-            try:
-                self.handle_evolution_tick(tick)
-            except SystemExit:
-                self.running = False
+                try:
+                    self.handle_evolution_tick(tick)
+                except SystemExit:
+                    self.running = False
 
-            # output results
+                # output results
+                self.update_display()
+                # poll for input
+                try:
+                    self.handle_events()
+                except SystemExit:
+                    self.running = False
+
+                # end of tick house-keeping
+                self.handle_tick_end()
+                if self.evolution_complete():
+                    complete = True
+
+                tick += 1
+        finally:
+            self.print_profiler()
+
+        if complete:
+            self._evolution_complete = True
             self.update_display()
-            # poll for input
-            self.handle_events()
-            # end of tick house-keeping
-            self.handle_tick_end()
-            if self.evolution_complete():
-                complete = True
-
-            tick += 1
-
-        self.print_profiler()
+            if self.options.get('save_on_exit', False):
+                self.save()
+            if not self.options.get('close_on_exit', False) and \
+                    not self.options.get('no_display', False):
+                self._run_done_loop()
 
     def handle_tick_start(self):
         """ Start a new image evolution cylcle (begin a tick) """
@@ -410,7 +448,22 @@ class App:
                 self.options.get('children', DEFAULT_CHILDREN)
         )
 
+        if self._last_worker_times:
+            n = len(self._last_worker_times)
+            utilization = (
+                sum(self._last_worker_times) / (gen_clock_duration * n) * 100
+            ) if gen_clock_duration > 0 else 0
+            self.stats["workers_used"] = n
+            self.stats["worker_utilization"] = utilization
+            self.stats["avg_worker_utilization"] = (
+                (self.stats.get("avg_worker_utilization", 0) *
+                 (self.current_generation - 1) + utilization)
+                / self.current_generation
+            )
+
     def print_profiler(self):
+        parallel = self.options.get('workers', 1) > 1
+
         print("======================================")
         if self._movie_mode:
             print(f"====== Frame {self.current_frame} / \
@@ -423,18 +476,89 @@ class App:
         if self.options.get('gen_stop', -1) >= 0:
             print(f"/{self.options.get('gen_stop')}", end='')
 
-        print(
-            f" child: {self.current_child}/{self.options.get('children')} ---"
-        )
+        if parallel:
+            print(f" workers: {self.options.get('workers')} ---")
+        else:
+            print(
+                f" child: {self.current_child}/{self.options.get('children')} ---"
+            )
 
+        process_time_label = "(main thread only)" if parallel else ""
+        process_time_keys = {
+            "total_process_time",
+            "average_generation_process_time",
+            "current_generation_process_time",
+            "process_time_per_child",
+        }
         for val in self.stats:
-            print(f"{val}:\t{self.stats[val]}")
+            suffix = f" {process_time_label}" if parallel and val in process_time_keys else ""
+            print(f"{val}{suffix}:\t{self.stats[val]}")
         print("-------------------")
 
         """ we could calculate this every tick, but it would add cost """
         score = match_score(self.target_surface, self.canvas.surface)
-        print(f"match percentage: {get_match_percentage(score)}")
+        self._final_match_pct = get_match_percentage(score)
+        print(f"match percentage: {self._final_match_pct}")
         print("-------------------")
+
+    def _format_elapsed(self, seconds):
+        seconds = int(seconds)
+        m, s = divmod(seconds, 60)
+        h, m = divmod(m, 60)
+        if h:
+            return f"{h}:{m:02d}:{s:02d}"
+        return f"{m}:{s:02d}"
+
+    def render_hud(self, surface):
+        if self.hud_font is None:
+            return
+        screen_w, screen_h = surface.get_size()
+        line_h = HUD_FONT_SIZE + HUD_PADDING * 2
+        bar_h = line_h * 2 + HUD_PADDING
+
+        bar = pygame.Surface((screen_w, bar_h), pygame.SRCALPHA)
+        bar.fill((0, 0, 0, 160))
+
+        if self._evolution_complete:
+            elapsed = self._format_elapsed(self.stats.get("total_clock_time", 0))
+            match_str = f"{self._final_match_pct:.1f}%" if self._final_match_pct is not None else "?"
+            status = f"Done — {elapsed}  ·  match: {match_str}  (Enter or Esc to close)"
+        else:
+            gen_stop = self.options.get('gen_stop', -1)
+            gen_str = f"gen: {self.current_generation}"
+            if gen_stop > 0:
+                gen_str += f"/{gen_stop}"
+            r = self.options.get('radius')
+            if self.options.get('workers', 1) > 1:
+                status = f"{gen_str}  ·  workers: {self.options.get('workers')}  ·  maxR: {r}"
+            else:
+                children = self.options.get('children', DEFAULT_CHILDREN)
+                status = f"{gen_str}  ·  child: {self.current_child}/{children}  ·  maxR: {r}"
+
+        hotkeys = (
+            "Esc: quit  ·  Space: stats dump  ·  Enter/S: snapshot  ·  A: save JSON"
+            "  ·  H: highlights  ·  ←→: children  ·  ↑↓: radius"
+        )
+
+        status_surf, _ = self.hud_font.render(status, (220, 220, 220))
+        hotkey_surf, _ = self.hud_font.render(hotkeys, (150, 150, 150))
+
+        bar.blit(status_surf, (HUD_PADDING, HUD_PADDING))
+        bar.blit(hotkey_surf, (HUD_PADDING, line_h + HUD_PADDING))
+        surface.blit(bar, (0, screen_h - bar_h))
+
+    def _run_done_loop(self):
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    return
+                elif event.type == pygame.KEYDOWN:
+                    if event.key in (pygame.K_ESCAPE, pygame.K_RETURN):
+                        return
+                elif event.type == pygame.VIDEORESIZE:
+                    pass
+            self.update_display()
+            pygame.time.wait(50)
 
     def print(self, output_string):
         if self.options.get('verbose', False):
@@ -488,6 +612,7 @@ class App:
             screen_size[1]/2 - scaled_size[1]/2
         )
         self.screen.blit(scaled_screen, origin)
+        self.render_hud(self.screen)
         pygame.display.update()
 
     def render_stats(self, surface, pos):
@@ -503,16 +628,15 @@ class App:
 
         line_1 = f"{line_1}gen: {self.current_generation}"
 
-        children = self.options.get('children')
-        children_length = number_length(children)
-
         if self.options.get('gen_stop', -1) > 0:
             line_1 = f"{line_1}/{self.options.get('gen_stop', -1)}"
 
-        line_1 = (
-            f"{line_1}"
-            f" child: {self.current_child:0{children_length}d}/{children}"
-        )
+        if self.options.get('workers', 1) > 1:
+            line_1 = f"{line_1} workers: {self.options.get('workers')}"
+        else:
+            children = self.options.get('children')
+            children_length = number_length(children)
+            line_1 = f"{line_1} child: {self.current_child:0{children_length}d}/{children}"
 
         line_2 = f"maxR: {self.options.get('radius')}"
 
@@ -597,6 +721,7 @@ class App:
             screen_size[1]/2 - scaled_size[1]/2
         )
         self.screen.blit(scaled_screen, origin)
+        self.render_hud(self.screen)
 
         # required even with display off so we can gather keypresses
         pygame.display.update()
@@ -754,23 +879,25 @@ class App:
                 max_radius*self.clipped_section_scale
             ))
 
-        self.canvas.apply_mutator(
-            mutation.mutate_evolve,
-            {
-                'target': self.target_surface,
-                'clip_rect': self._clip_rect,
-                'children': self.options.get('children', DEFAULT_CHILDREN),
-                'shape': self.options.get('shape', DEFAULT_SHAPE),
-                'words': self.options.get('words', None),
-                'brush_images': self.brush_surfaces,
-                'max_radius': max_radius,
-                'child_callback': self.child_callback,
-                'score_fn': STRATEGIES.get(
-                    self.options.get('compare_strategy', 'euclidean'),
-                    STRATEGIES['euclidean']
-                ),
-            }
-        )
+        mutator_params = {
+            'target': self.target_surface,
+            'clip_rect': self._clip_rect,
+            'children': self.options.get('children', DEFAULT_CHILDREN),
+            'shape': self.options.get('shape', DEFAULT_SHAPE),
+            'words': self.options.get('words', None),
+            'brush_images': self.brush_surfaces,
+            'max_radius': max_radius,
+            'child_callback': self.child_callback,
+            'score_fn': STRATEGIES.get(
+                self.options.get('compare_strategy', 'euclidean'),
+                STRATEGIES['euclidean']
+            ),
+            'pool': self._pool,
+            'workers': self.options.get('workers', 1),
+            '_parallel_stats': {},
+        }
+        self.canvas.apply_mutator(mutation.mutate_evolve, mutator_params)
+        self._last_worker_times = mutator_params['_parallel_stats'].get('worker_times', [])
 
     def movie_complete(self):
         """ Boolean: True if frames are done """

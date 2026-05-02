@@ -38,6 +38,9 @@ Common options:
 | `-v` | Verbose output |
 | `--seed N` | Fix the random seed for reproducible runs |
 | `--compare-strategy` | `euclidean` (default) or `lab` (perceptually weighted) |
+| `-j N` | Use N parallel worker processes for child generation (default: 1, serial); brief startup cost on first generation; most beneficial on longer runs; end-of-run stats include worker utilization |
+| `--save-on-exit` | Automatically save output when evolution completes |
+| `--close-on-exit` | Close the display immediately when evolution completes (default: stay open) |
 
 While running:
 
@@ -53,6 +56,34 @@ While running:
 | `←` / `→` | Decrease / increase children count |
 | `↑` / `↓` | Increase / decrease max radius |
 | `Shift` + arrow | Adjust by 10 instead of 1 |
+
+## Examples
+
+```bash
+# Basic run — circles, 1000 generations
+imagemutate sample/images/fox-720x1080.jpg -d output -r 150 -c 100 -g 1000
+
+# Parallel — 8 workers, best for longer runs
+imagemutate sample/images/fox-720x1080.jpg -d output -r 150 -c 100 -g 1000 -j 8
+
+# Perceptual color scoring
+imagemutate sample/images/fox-720x1080.jpg -d output -r 150 -c 100 -g 1000 -j 8 --compare-strategy lab
+
+# Triangles instead of circles
+imagemutate sample/images/fox-720x1080.jpg -d output -r 150 -c 100 -g 1000 -j 8 -S triangle
+
+# Words as shapes
+imagemutate sample/images/fox-720x1080.jpg -d output -r 150 -c 100 -g 1000 -j 8 -W f o x
+
+# Use another image as a brush texture inside shapes
+imagemutate sample/images/fox-720x1080.jpg -d output -r 150 -c 100 -g 1000 -j 8 -b sample/images/oranges.jpg
+
+# Reproducible run with fixed seed
+imagemutate sample/images/fox-720x1080.jpg -d output -r 150 -c 100 -g 1000 --seed 42
+
+# Save instructions for replay instead of image
+imagemutate sample/images/fox-720x1080.jpg -d output -r 150 -c 100 -g 1000 -i
+```
 
 ### imagereplay
 

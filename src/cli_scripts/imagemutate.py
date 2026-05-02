@@ -111,9 +111,21 @@ def get_arg_parser():
                         help="comparison strategy: euclidean (default) or lab "
                              "(perceptually weighted)"
                         )
+    parser.add_argument("-j", "--workers", default=1, type=int,
+                        help="number of parallel worker processes for child "
+                             "generation (default: 1, serial)"
+                        )
     parser.add_argument("-N", "--no-display", default=False,
                         action="store_true", help="""[N]o display.
                         Don't show results in realtime"""
+                        )
+    parser.add_argument("--close-on-exit", default=False,
+                        action="store_true",
+                        help="close the display immediately when evolution completes"
+                        )
+    parser.add_argument("--save-on-exit", default=False,
+                        action="store_true",
+                        help="automatically save output when evolution completes"
                         )
 
     parser.add_argument(

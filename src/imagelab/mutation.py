@@ -38,6 +38,9 @@
     #    ret = self.mutatorName, self.mutatorActions
     #    return pickle.dumps(ret)
 """
+import os
+import numpy as np
+from multiprocessing.shared_memory import SharedMemory
 from imagelab import rng
 from imagelab.constants import (
     SHAPE_CIRCLE,
@@ -46,7 +49,106 @@ from imagelab.constants import (
     POLYGON_NUM_SIDES,
 )
 from imagelab.drawing import draw_random_circle, draw_random_polygon, draw_random_word
-from imagelab.compare import best_match
+from imagelab.compare import best_match, euclidean_score, lab_score
+
+
+def _pygame_init():
+    """Worker process initializer: configure headless SDL and init pygame."""
+    os.environ.setdefault('SDL_VIDEODRIVER', 'dummy')
+    os.environ.setdefault('SDL_AUDIODRIVER', 'dummy')
+    import pygame
+    pygame.init()
+
+
+def _child_worker(args):
+    """Generate a batch of children in one worker, return the best (score, opcode, params).
+    Reads clip_base and target from shared memory — no large array transfers.
+    """
+    (seed_chunk,
+     clip_shm_name, clip_shape, clip_dtype,
+     target_shm_name, target_shape, target_dtype,
+     shape, words, max_radius, radius, alpha, color, color_key,
+     pos, max_edges, brush_arrays, clip_rect_tuple, surface_origin,
+     score_fn_name) = args
+
+    import time
+    import pygame
+    import numpy as np
+    from multiprocessing.shared_memory import SharedMemory
+
+    clip_shm = SharedMemory(name=clip_shm_name)
+    clip_base_array = np.ndarray(clip_shape, dtype=clip_dtype, buffer=clip_shm.buf)
+
+    target_shm = SharedMemory(name=target_shm_name)
+    target_array = np.ndarray(target_shape, dtype=target_dtype, buffer=target_shm.buf)
+
+    brush_images = [pygame.surfarray.make_surface(a) for a in brush_arrays] if brush_arrays else None
+    clip_rect = pygame.Rect(*clip_rect_tuple) if clip_rect_tuple else None
+
+    # Pre-process target once for all children in this batch
+    if score_fn_name == 'lab':
+        import cv2
+        def to_lab(arr):
+            return cv2.cvtColor(
+                np.ascontiguousarray(arr.astype(np.uint8).transpose(1, 0, 2)),
+                cv2.COLOR_RGB2LAB
+            ).astype(float)
+        target_pre = to_lab(target_array)
+        def _score(result_array):
+            diff = target_pre - to_lab(result_array)
+            return float(np.average(np.sqrt(np.sum(diff * diff, axis=2))))
+    else:
+        target_pre = target_array.astype(np.int32)
+        def _score(result_array):
+            diff = result_array.astype(np.int32) - target_pre
+            return float(np.average(np.sqrt(np.sum(diff * diff, axis=2))))
+
+    best_score = float('inf')
+    best_opcode = None
+    best_params = None
+    start_time = time.perf_counter()
+
+    for seed in seed_chunk:
+        rng.seed(seed)
+        img = pygame.surfarray.make_surface(clip_base_array).copy()
+
+        if words:
+            result = draw_random_word(
+                img, words, None, clip_rect, max_radius, radius,
+                alpha, color, color_key, pos, brush_images,
+                surface_origin=surface_origin,
+            )
+        elif shape in POLYGON_NUM_SIDES or shape == SHAPE_POLYGON:
+            num_sides = None if shape == SHAPE_POLYGON else POLYGON_NUM_SIDES[shape]
+            result = draw_random_polygon(
+                img, num_sides, None, clip_rect, max_radius, radius,
+                alpha, color, color_key, pos, max_edges, brush_images,
+                surface_origin=surface_origin,
+            )
+        else:
+            result = draw_random_circle(
+                img, clip_rect, max_radius, radius, alpha, color,
+                color_key, pos, brush_images,
+                surface_origin=surface_origin,
+            )
+
+        score = _score(pygame.surfarray.array3d(img))
+        if score < best_score:
+            best_score = score
+            p = dict(result.params)
+            if p.get('brush_image') is not None:
+                p['brush_image'] = pygame.surfarray.array3d(p['brush_image'])
+            if p.get('brush_sample_rect') is not None:
+                r = p['brush_sample_rect']
+                p['brush_sample_rect'] = (r.x, r.y, r.width, r.height)
+            best_opcode = result.opcode
+            best_params = p
+
+    elapsed = time.perf_counter() - start_time
+    clip_shm.close()
+    target_shm.close()
+
+    return best_score, best_opcode, best_params, elapsed
 
 
 def mutator(mutator_fn):
@@ -85,6 +187,104 @@ def mutate_evolve(surface, params):
     words = params.get("words", None)
     brush_images = params.get("brush_images", None)
     score_fn = params.get("score_fn", None)
+    pool = params.get("pool", None)
+
+    if pool is not None:
+        import pygame
+        from imagelab.canvas import CanvasAction
+
+        resolved_shape = shape if shape is not None else SHAPE_SETTINGS_ARRAY[int(rng.integers(0, 6))]
+        score_fn_name = 'lab' if score_fn is lab_score else 'euclidean'
+
+        if clip_rect is not None:
+            clipped_rect = surface.get_rect().clip(clip_rect)
+            clip_base = surface.subsurface(clipped_rect).copy()
+            surface_origin = clipped_rect.topleft
+            target_arr = pygame.surfarray.array3d(target)
+            target_clipped = np.ascontiguousarray(
+                target_arr[clipped_rect.left:clipped_rect.right,
+                           clipped_rect.top:clipped_rect.bottom]
+            )
+        else:
+            clip_base = surface
+            surface_origin = (0, 0)
+            target_clipped = np.ascontiguousarray(pygame.surfarray.array3d(target))
+
+        clip_base_array = np.ascontiguousarray(pygame.surfarray.array3d(clip_base))
+
+        # Write shared arrays once; workers read without copying
+        clip_shm = SharedMemory(create=True, size=clip_base_array.nbytes)
+        np.ndarray(clip_base_array.shape, dtype=clip_base_array.dtype,
+                   buffer=clip_shm.buf)[:] = clip_base_array
+
+        target_shm = SharedMemory(create=True, size=target_clipped.nbytes)
+        np.ndarray(target_clipped.shape, dtype=target_clipped.dtype,
+                   buffer=target_shm.buf)[:] = target_clipped
+
+        brush_arrays = [pygame.surfarray.array3d(b) for b in brush_images] if brush_images else []
+        clip_rect_tuple = (clip_rect.x, clip_rect.y, clip_rect.width, clip_rect.height) if clip_rect else None
+        all_seeds = [int(rng.integers(0, 2**31)) for _ in range(children)]
+
+        # One task per worker, each handles a chunk of children internally
+        n_workers = min(params.get("workers", 1), children)
+        chunk_size = (children + n_workers - 1) // n_workers
+        seed_chunks = [all_seeds[i:i + chunk_size] for i in range(0, children, chunk_size)]
+
+        args_list = [
+            (chunk,
+             clip_shm.name, clip_base_array.shape, str(clip_base_array.dtype),
+             target_shm.name, target_clipped.shape, str(target_clipped.dtype),
+             resolved_shape, words, max_radius, radius, alpha, color, color_key,
+             pos, max_edges, brush_arrays, clip_rect_tuple, surface_origin, score_fn_name)
+            for chunk in seed_chunks
+        ]
+
+        try:
+            raw_results = pool.map(_child_worker, args_list)
+        finally:
+            clip_shm.close()
+            clip_shm.unlink()
+            target_shm.close()
+            target_shm.unlink()
+
+        params['_parallel_stats'] = {
+            'worker_times': [r[3] for r in raw_results],
+        }
+
+        # Contender baseline: current surface unchanged
+        contender_score = (score_fn if score_fn else euclidean_score)(target_clipped, clip_base_array)
+
+        best_score = contender_score
+        best_result = None
+        for worker_score, opcode, result_params, _ in raw_results:
+            if worker_score < best_score:
+                best_score = worker_score
+                best_result = (opcode, result_params)
+
+        shape_actions = []
+        if best_result is not None:
+            opcode, result_params = best_result
+            p = dict(result_params)
+            if p.get('brush_image') is not None:
+                p['brush_image'] = pygame.surfarray.make_surface(p['brush_image'])
+            if p.get('brush_sample_rect') is not None:
+                p['brush_sample_rect'] = pygame.Rect(*p['brush_sample_rect'])
+            action = CanvasAction.deserialize([opcode, p])
+            shape_actions = [action]
+
+            # Regenerate winning surface by replaying the action — no array transfer
+            winner_surf = clip_base.copy()
+            action.run(winner_surf, origin=surface_origin)
+
+            if clip_rect is not None:
+                clipped_rect = surface.get_rect().clip(clip_rect)
+                surface = surface.copy()
+                surface.blit(winner_surf, clipped_rect.topleft)
+            else:
+                surface = winner_surf
+
+        return shape_actions, surface
+
     # TODO: move above PARAMS into **kwargs and set default vaules via
     # new_params = defaults.copy()
     # new_params.update(params)
