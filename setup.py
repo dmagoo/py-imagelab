@@ -22,5 +22,10 @@ setup(
             "imagemerge=cli_scripts.imagemerge:run"
         ]
     },
-    install_requires=[],
+    install_requires=[
+        'numpy',
+        'pygame',
+        'opencv-python',
+        'jsonpickle',
+    ],
 )
